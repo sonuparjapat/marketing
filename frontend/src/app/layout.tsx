@@ -31,13 +31,22 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
+// Only allow safe CSS color syntax through into the injected <style> tag (hex, oklch(), rgb(), named colors).
+const SAFE_CSS_COLOR = /^[#a-zA-Z0-9(),.\s%-]{1,80}$/;
+function safeColor(value: string | undefined, fallback: string) {
+  return value && SAFE_CSS_COLOR.test(value) ? value : fallback;
+}
+
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const settings = await getPublicSettings();
   const gaId = settings.ga_measurement_id;
+  const bg = safeColor(settings.primary_color, '#14171f');
+  const accent = safeColor(settings.accent_color, '#d4af6a');
 
   return (
     <html lang="en">
       <body className={`${newsreader.variable} ${manrope.variable} antialiased`}>
+        <style>{`:root { --bg: ${bg}; --accent: ${accent}; }`}</style>
         <ToastProvider>{children}</ToastProvider>
         {gaId && (
           <>

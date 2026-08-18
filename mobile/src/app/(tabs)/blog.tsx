@@ -1,10 +1,13 @@
+import { useMemo } from 'react';
 import { Text, FlatList, StyleSheet, Pressable } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { colors, spacing } from '../../constants/theme';
+import { useTheme, spacing, type ThemeColors } from '../../context/theme';
 import { getPosts } from '../../api/services';
 
 export default function BlogScreen() {
+  const colors = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const router = useRouter();
   const { data, isLoading } = useQuery({ queryKey: ['posts'], queryFn: getPosts });
 
@@ -27,12 +30,13 @@ export default function BlogScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
-  h1: { color: colors.fg, fontSize: 28, fontWeight: '600', marginBottom: 24 },
-  card: { backgroundColor: colors.bg2, borderWidth: 1, borderColor: colors.line, borderRadius: 8, padding: 18, marginBottom: 12 },
-  category: { color: colors.accent, fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 8, textTransform: 'uppercase' },
-  cardTitle: { color: colors.fg, fontSize: 16, fontWeight: '600', marginBottom: 6 },
-  cardBody: { color: colors.muted, fontSize: 13.5, lineHeight: 19 },
-  empty: { color: colors.faint, fontSize: 13, fontStyle: 'italic' },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    screen: { flex: 1, backgroundColor: colors.bg },
+    h1: { color: colors.fg, fontSize: 28, fontWeight: '600', marginBottom: 24 },
+    card: { backgroundColor: colors.bg2, borderWidth: 1, borderColor: colors.line, borderRadius: 8, padding: 18, marginBottom: 12 },
+    category: { color: colors.accent, fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 8, textTransform: 'uppercase' },
+    cardTitle: { color: colors.fg, fontSize: 16, fontWeight: '600', marginBottom: 6 },
+    cardBody: { color: colors.muted, fontSize: 13.5, lineHeight: 19 },
+    empty: { color: colors.faint, fontSize: 13, fontStyle: 'italic' },
+  });

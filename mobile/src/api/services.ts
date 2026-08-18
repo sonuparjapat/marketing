@@ -43,6 +43,16 @@ export type Post = {
 
 export type PostDetail = Post & { content: string };
 
+export type Faq = { id: number; question: string; answer: string; category: string };
+
+export const getFaqs = (category?: string) =>
+  api
+    .get<{ success: true; data: Faq[] }>(`/faqs${category ? `?category=${encodeURIComponent(category)}` : ''}`)
+    .then((r) => r.data.data);
+
+export const getPublicSettings = () =>
+  api.get<{ success: true; data: Record<string, string> }>('/settings/public').then((r) => r.data.data);
+
 export const getServices = () => api.get<{ success: true; data: Service[] }>('/services').then((r) => r.data.data);
 export const getService = (slug: string) =>
   api.get<{ success: true; data: ServiceDetail }>(`/services/${slug}`).then((r) => r.data.data);
@@ -62,5 +72,7 @@ export const submitLead = (payload: {
   email: string;
   phone?: string;
   message?: string;
+  service_interested?: string;
+  budget_range?: string;
   source?: string;
 }) => api.post('/leads', { ...payload, source: payload.source || 'mobile-app' }).then((r) => r.data);

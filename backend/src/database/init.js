@@ -328,8 +328,8 @@ async function seedDefaultSettings() {
     privacy_contact_email: 'hello@anvil.agency',
     notice_period: '30 days',
     budget_ranges: JSON.stringify(['Under ₹50k/month', '₹50k–₹1.5L/month', '₹1.5L–₹5L/month', '₹5L+/month']),
-    primary_color: 'oklch(0.16 0.02 260)',
-    accent_color: 'oklch(0.78 0.13 85)',
+    primary_color: '#14171f',
+    accent_color: '#d4af6a',
   };
 
   for (const [key, value] of Object.entries(defaults)) {

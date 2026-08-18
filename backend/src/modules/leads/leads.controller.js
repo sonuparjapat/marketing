@@ -4,6 +4,7 @@ const asyncHandler = require('../../utils/asyncHandler');
 const { ok, fail } = require('../../utils/response');
 const { sendMail } = require('../../config/mailer');
 const { leadAutoReply, leadAdminAlert } = require('../../utils/emailTemplates');
+const { notifyAdmins } = require('../../utils/notifyAdmins');
 
 const createLead = asyncHandler(async (req, res) => {
   const { name, email, phone, company, service_interested, budget_range, message, source } = req.body;
@@ -36,6 +37,12 @@ const createLead = asyncHandler(async (req, res) => {
       (e) => console.error('Lead admin alert email failed:', e.message)
     );
   }
+
+  notifyAdmins('new_lead', {
+    title: 'New lead',
+    body: `${lead.name} — ${lead.service_interested || 'General enquiry'}`,
+    data: lead,
+  }).catch((e) => console.error('Lead notification failed:', e.message));
 
   ok(res, lead, 201);
 });

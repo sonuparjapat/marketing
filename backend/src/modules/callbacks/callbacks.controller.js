@@ -3,6 +3,7 @@ const asyncHandler = require('../../utils/asyncHandler');
 const { ok, fail } = require('../../utils/response');
 const { sendMail } = require('../../config/mailer');
 const { callbackConfirmation, callbackAdminAlert } = require('../../utils/emailTemplates');
+const { notifyAdmins } = require('../../utils/notifyAdmins');
 
 const requestCallback = asyncHandler(async (req, res) => {
   const { name, phone, preferred_time } = req.body;
@@ -21,6 +22,12 @@ const requestCallback = asyncHandler(async (req, res) => {
       html: callbackAdminAlert(cb),
     }).catch((e) => console.error('Callback admin alert failed:', e.message));
   }
+
+  notifyAdmins('new_callback', {
+    title: 'New callback request',
+    body: `${cb.name} — ${cb.phone}`,
+    data: cb,
+  }).catch((e) => console.error('Callback notification failed:', e.message));
 
   ok(res, cb, 201);
 });

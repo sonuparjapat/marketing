@@ -27,6 +27,7 @@ const clientLogos = require('./modules/clientLogos/clientLogos.routes');
 const faqs = require('./modules/faqs/faqs.routes');
 const pages = require('./modules/pages/pages.routes');
 const homepageSections = require('./modules/homepageSections/homepageSections.routes');
+const pushTokens = require('./modules/pushTokens/pushTokens.routes');
 
 const app = express();
 
@@ -94,6 +95,7 @@ app.use('/api/admin/client-logos', clientLogos.adminRouter);
 app.use('/api/admin/faqs', faqs.adminRouter);
 app.use('/api/admin/pages', pages.adminRouter);
 app.use('/api/admin/homepage-sections', homepageSections.adminRouter);
+app.use('/api/admin/push-tokens', pushTokens.adminRouter);
 
 app.use(notFound);
 app.use(errorHandler);

@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
 import { getAdminUser, clearAdminSession, getAdminToken, type AdminUser } from '@/lib/adminAuth';
+import { useAdminSocket } from '@/lib/useAdminSocket';
+import { useToast } from '@/components/Toast';
 
 const NAV_GROUPS: { label: string; items: { href: string; label: string }[] }[] = [
   { label: '', items: [{ href: '/admin', label: 'Dashboard' }] },
@@ -51,6 +53,8 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [admin, setAdmin] = useState<AdminUser | null>(null);
   const [checked, setChecked] = useState(false);
+  const [inboxBadge, setInboxBadge] = useState(0);
+  const { show } = useToast();
 
   useEffect(() => {
     const token = getAdminToken();
@@ -61,6 +65,23 @@ export function AdminShell({ children }: { children: ReactNode }) {
     setAdmin(getAdminUser());
     setChecked(true);
   }, [router]);
+
+  useAdminSocket({
+    onNewLead: (data) => {
+      const lead = data as { name?: string };
+      show(`New lead: ${lead.name || 'Someone'} just got in touch.`);
+      setInboxBadge((n) => n + 1);
+    },
+    onNewCallback: (data) => {
+      const cb = data as { name?: string };
+      show(`New callback request from ${cb.name || 'someone'}.`);
+      setInboxBadge((n) => n + 1);
+    },
+  });
+
+  useEffect(() => {
+    if (pathname === '/admin/leads' || pathname === '/admin/callbacks') setInboxBadge(0);
+  }, [pathname]);
 
   if (!checked) {
     return <div className="flex min-h-screen items-center justify-center text-sm text-faint">Checking session…</div>;
@@ -76,7 +97,14 @@ export function AdminShell({ children }: { children: ReactNode }) {
           {NAV_GROUPS.map((group, gi) => (
             <div key={gi} className="flex flex-col gap-1">
               {group.label && (
-                <div className="px-3 pb-1 text-[11px] uppercase tracking-wider text-faint">{group.label}</div>
+                <div className="flex items-center gap-2 px-3 pb-1 text-[11px] uppercase tracking-wider text-faint">
+                  {group.label}
+                  {group.label === 'Inbox' && inboxBadge > 0 && (
+                    <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-bold text-bg">
+                      {inboxBadge}
+                    </span>
+                  )}
+                </div>
               )}
               {group.items.map((item) => {
                 const active = pathname === item.href;

@@ -1,14 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing } from '../../constants/theme';
-import { getService, ServiceDetail } from '../../api/services';
+import { useTheme, spacing, type ThemeColors } from '../../context/theme';
+import { getService, getFaqs, ServiceDetail, Faq } from '../../api/services';
+import { FaqAccordion } from '../../components/FaqAccordion';
 
 export default function ServiceDetailScreen() {
+  const colors = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const router = useRouter();
   const [service, setService] = useState<ServiceDetail | null>(null);
+  const [faqs, setFaqs] = useState<Faq[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -16,6 +20,10 @@ export default function ServiceDetailScreen() {
     getService(slug)
       .then(setService)
       .finally(() => setLoading(false));
+    getFaqs(slug)
+      .then((list) => (list.length ? list : getFaqs('general')))
+      .then((list) => setFaqs(Array.isArray(list) ? list : []))
+      .catch(() => {});
   }, [slug]);
 
   if (loading) {
@@ -57,19 +65,27 @@ export default function ServiceDetailScreen() {
           ))}
         </View>
       )}
+
+      {faqs.length > 0 && (
+        <View style={{ marginTop: 28 }}>
+          <Text style={styles.sectionLabel}>Frequently asked</Text>
+          <FaqAccordion faqs={faqs} />
+        </View>
+      )}
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
-  back: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
-  backText: { color: colors.muted, fontSize: 14, marginLeft: 4 },
-  h1: { color: colors.fg, fontSize: 26, fontWeight: '600', marginBottom: 10 },
-  sub: { color: colors.muted, fontSize: 15, lineHeight: 22, marginBottom: 20 },
-  body: { color: colors.fg, fontSize: 14.5, lineHeight: 21, opacity: 0.9 },
-  sectionLabel: { color: colors.accent, fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 14 },
-  featureRow: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 8, borderTopWidth: 1, borderTopColor: colors.line },
-  dot: { width: 5, height: 5, borderRadius: 3, backgroundColor: colors.accent, marginTop: 7, marginRight: 10 },
-  featureText: { color: colors.fg, fontSize: 14.5, flex: 1 },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    screen: { flex: 1, backgroundColor: colors.bg },
+    back: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
+    backText: { color: colors.muted, fontSize: 14, marginLeft: 4 },
+    h1: { color: colors.fg, fontSize: 26, fontWeight: '600', marginBottom: 10 },
+    sub: { color: colors.muted, fontSize: 15, lineHeight: 22, marginBottom: 20 },
+    body: { color: colors.fg, fontSize: 14.5, lineHeight: 21, opacity: 0.9 },
+    sectionLabel: { color: colors.accent, fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 14 },
+    featureRow: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 8, borderTopWidth: 1, borderTopColor: colors.line },
+    dot: { width: 5, height: 5, borderRadius: 3, backgroundColor: colors.accent, marginTop: 7, marginRight: 10 },
+    featureText: { color: colors.fg, fontSize: 14.5, flex: 1 },
+  });

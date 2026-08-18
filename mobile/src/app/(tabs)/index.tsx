@@ -1,10 +1,13 @@
+import { useMemo } from 'react';
 import { Text, ScrollView, StyleSheet, Pressable } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'expo-router';
-import { colors, spacing } from '../../constants/theme';
+import { useTheme, spacing, type ThemeColors } from '../../context/theme';
 import { getServices, getCaseStudies } from '../../api/services';
 
 export default function HomeScreen() {
+  const colors = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { data: services } = useQuery({ queryKey: ['services'], queryFn: getServices });
   const { data: caseStudies } = useQuery({ queryKey: ['case-studies'], queryFn: getCaseStudies });
 
@@ -48,21 +51,28 @@ export default function HomeScreen() {
         </Link>
       ))}
       {!caseStudies?.length && <Text style={styles.empty}>Case studies will appear here once published.</Text>}
+
+      <Link href="/admin/login" asChild>
+        <Pressable style={{ marginTop: 40, alignItems: 'center' }}>
+          <Text style={{ color: colors.faint, fontSize: 11 }}>Admin</Text>
+        </Pressable>
+      </Link>
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
-  eyebrow: { color: colors.accent, fontSize: 12, letterSpacing: 2, marginBottom: 12 },
-  h1: { color: colors.fg, fontSize: 32, fontWeight: '600', lineHeight: 40, marginBottom: 16 },
-  sub: { color: colors.muted, fontSize: 15, lineHeight: 22, marginBottom: 28 },
-  cta: { backgroundColor: colors.accent, paddingVertical: 16, borderRadius: 4, alignItems: 'center', marginBottom: 48 },
-  ctaText: { color: colors.bg, fontWeight: '700', fontSize: 15 },
-  sectionTitle: { color: colors.fg, fontSize: 20, fontWeight: '600', marginBottom: 16, marginTop: 8 },
-  card: { backgroundColor: colors.bg2, borderWidth: 1, borderColor: colors.line, borderRadius: 8, padding: 18, marginBottom: 12 },
-  cardTitle: { color: colors.fg, fontSize: 16, fontWeight: '600', marginBottom: 6 },
-  cardBody: { color: colors.muted, fontSize: 13.5, lineHeight: 19 },
-  badge: { color: colors.accent, fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 8 },
-  empty: { color: colors.faint, fontSize: 13, fontStyle: 'italic', marginBottom: 24 },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    screen: { flex: 1, backgroundColor: colors.bg },
+    eyebrow: { color: colors.accent, fontSize: 12, letterSpacing: 2, marginBottom: 12 },
+    h1: { color: colors.fg, fontSize: 32, fontWeight: '600', lineHeight: 40, marginBottom: 16 },
+    sub: { color: colors.muted, fontSize: 15, lineHeight: 22, marginBottom: 28 },
+    cta: { backgroundColor: colors.accent, paddingVertical: 16, borderRadius: 4, alignItems: 'center', marginBottom: 48 },
+    ctaText: { color: colors.bg, fontWeight: '700', fontSize: 15 },
+    sectionTitle: { color: colors.fg, fontSize: 20, fontWeight: '600', marginBottom: 16, marginTop: 8 },
+    card: { backgroundColor: colors.bg2, borderWidth: 1, borderColor: colors.line, borderRadius: 8, padding: 18, marginBottom: 12 },
+    cardTitle: { color: colors.fg, fontSize: 16, fontWeight: '600', marginBottom: 6 },
+    cardBody: { color: colors.muted, fontSize: 13.5, lineHeight: 19 },
+    badge: { color: colors.accent, fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 8 },
+    empty: { color: colors.faint, fontSize: 13, fontStyle: 'italic', marginBottom: 24 },
+  });

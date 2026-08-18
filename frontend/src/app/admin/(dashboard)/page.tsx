@@ -1,8 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import apiClient from '@/lib/apiClient';
+import { useAdminSocket } from '@/lib/useAdminSocket';
+import { Skeleton } from '@/components/Skeleton';
 
 type Stats = {
   leadsToday: number;
@@ -16,9 +18,15 @@ type Stats = {
 export default function AdminDashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     apiClient.get('/admin/stats').then((res) => setStats(res.data.data));
   }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  useAdminSocket({ onNewLead: load, onNewCallback: load });
 
   const cards = stats
     ? [
@@ -35,13 +43,19 @@ export default function AdminDashboardPage() {
       <h1 className="mb-8 font-serif text-2xl">Dashboard</h1>
 
       <div className="mb-12 grid grid-cols-2 gap-4 md:grid-cols-5">
-        {cards.map((c) => (
-          <div key={c.label} className="border border-line bg-bg2 p-5">
-            <div className="font-serif-italic text-3xl text-accent">{c.value}</div>
-            <div className="mt-1 text-xs text-muted">{c.label}</div>
-          </div>
-        ))}
-        {!stats && <p className="text-sm text-faint">Loading…</p>}
+        {stats
+          ? cards.map((c) => (
+              <div key={c.label} className="border border-line bg-bg2 p-5">
+                <div className="font-serif-italic text-3xl text-accent">{c.value}</div>
+                <div className="mt-1 text-xs text-muted">{c.label}</div>
+              </div>
+            ))
+          : Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="border border-line bg-bg2 p-5">
+                <Skeleton className="mb-2 h-8 w-12" />
+                <Skeleton className="h-3 w-20" />
+              </div>
+            ))}
       </div>
 
       <div className="border border-line">
