@@ -1,0 +1,56 @@
+import type { Metadata } from 'next';
+import { Newsreader, Manrope } from 'next/font/google';
+import Script from 'next/script';
+import './globals.css';
+import { getPublicSettings } from '@/lib/api';
+import { ToastProvider } from '@/components/Toast';
+
+const newsreader = Newsreader({
+  variable: '--font-newsreader',
+  subsets: ['latin'],
+  style: ['normal', 'italic'],
+  weight: ['300', '400', '500'],
+});
+
+const manrope = Manrope({
+  variable: '--font-manrope',
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700', '800'],
+});
+
+export async function generateMetadata(): Promise<Metadata> {
+  const settings = await getPublicSettings();
+  const title = settings.default_meta_title || "Anvil Digital — We don't just market brands. We've built one.";
+  const agencyName = settings.agency_name || 'Anvil Digital';
+
+  return {
+    title: { default: title, template: `%s | ${agencyName}` },
+    description:
+      settings.default_meta_description ||
+      'A performance marketing agency for D2C & SME brands in India, built by people who have shipped their own eCommerce brand.',
+  };
+}
+
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const settings = await getPublicSettings();
+  const gaId = settings.ga_measurement_id;
+
+  return (
+    <html lang="en">
+      <body className={`${newsreader.variable} ${manrope.variable} antialiased`}>
+        <ToastProvider>{children}</ToastProvider>
+        {gaId && (
+          <>
+            <Script src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`} strategy="afterInteractive" />
+            <Script id="ga4-init" strategy="afterInteractive">
+              {`window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
+                gtag('config', '${gaId}');`}
+            </Script>
+          </>
+        )}
+      </body>
+    </html>
+  );
+}
