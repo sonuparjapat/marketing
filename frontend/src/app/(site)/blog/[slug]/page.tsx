@@ -44,7 +44,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
     headline: post.title,
     description: post.excerpt,
     image: post.cover_image || undefined,
-    author: { '@type': 'Person', name: post.author },
+    author: { '@type': 'Person', name: post.author, url: post.author_linkedin_url || undefined },
     datePublished: post.created_at,
     dateModified: post.created_at,
     wordCount,
@@ -75,9 +75,15 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
         <h1 className="mb-5 mt-3 font-serif text-3xl font-normal leading-tight md:text-[42px]">{post.title}</h1>
 
         <div className="mb-10 flex flex-wrap items-center gap-3 text-sm text-faint">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full border border-line bg-bg2 text-xs font-bold text-accent">
-            {post.author.charAt(0)}
-          </div>
+          {post.author_photo ? (
+            <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full border border-line bg-bg2">
+              <Image src={post.author_photo} alt="" fill className="object-cover" sizes="32px" />
+            </div>
+          ) : (
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-line bg-bg2 text-xs font-bold text-accent">
+              {post.author.charAt(0)}
+            </div>
+          )}
           <span className="text-fg">{post.author}</span>
           <span>&middot;</span>
           <span>{new Date(post.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
@@ -89,7 +95,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
 
         {post.cover_image && (
           <div className="relative mb-10 aspect-[16/9] overflow-hidden border border-line bg-bg2">
-            <Image src={post.cover_image} alt={post.title} fill className="object-cover" sizes="720px" priority />
+            <Image src={post.cover_image} alt={post.cover_image_alt || post.title} fill className="object-cover" sizes="720px" priority />
           </div>
         )}
       </div>
@@ -135,19 +141,54 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
           </div>
         )}
 
-        {post.related?.length > 0 && (
-          <div className="mt-16 border-t border-line pt-10">
-            <h2 className="mb-6 text-xs uppercase tracking-[0.2em] text-accent">Related reading</h2>
-            <div className="grid gap-6">
-              {post.related.map((r) => (
-                <Link key={r.id} href={`/blog/${r.slug}`} className="block text-[15px] font-semibold hover:text-accent">
-                  {r.title}
-                </Link>
-              ))}
+        {post.author_bio && (
+          <div className="mt-12 flex gap-5 border border-line bg-bg2 p-6">
+            {post.author_photo ? (
+              <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full border border-line bg-bg">
+                <Image src={post.author_photo} alt="" fill className="object-cover" sizes="64px" />
+              </div>
+            ) : (
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-line bg-bg text-lg font-bold text-accent">
+                {post.author.charAt(0)}
+              </div>
+            )}
+            <div>
+              <p className="font-semibold text-fg">{post.author}</p>
+              {post.author_designation && <p className="text-xs text-faint">{post.author_designation}</p>}
+              <p className="mt-2 text-sm leading-relaxed text-muted">{post.author_bio}</p>
+              {post.author_linkedin_url && (
+                <a href={post.author_linkedin_url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-xs text-accent hover:opacity-80">
+                  LinkedIn &rarr;
+                </a>
+              )}
             </div>
           </div>
         )}
       </div>
+
+      {post.related?.length > 0 && (
+        <div className="mx-auto mt-16 max-w-[960px] border-t border-line pt-10">
+          <h2 className="mb-6 text-xs uppercase tracking-[0.2em] text-accent">Related reading</h2>
+          <div className="grid gap-8 md:grid-cols-3">
+            {post.related.map((r) => (
+              <Link key={r.id} href={`/blog/${r.slug}`} className="group block">
+                <div className="relative mb-4 aspect-[4/3] overflow-hidden border border-line bg-bg2">
+                  {r.cover_image && (
+                    <Image
+                      src={r.cover_image}
+                      alt={r.cover_image_alt || r.title}
+                      fill
+                      className="object-cover transition-transform duration-500 group-hover:scale-105"
+                      sizes="320px"
+                    />
+                  )}
+                </div>
+                <h3 className="text-[15px] font-semibold leading-snug group-hover:text-accent">{r.title}</h3>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
     </main>
   );
 }

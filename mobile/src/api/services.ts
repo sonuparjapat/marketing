@@ -36,12 +36,18 @@ export type Post = {
   slug: string;
   excerpt: string;
   cover_image: string | null;
+  cover_image_alt: string | null;
   category: string;
   author: string;
   created_at: string;
 };
 
-export type PostDetail = Post & { content: string };
+export type PostDetail = Post & {
+  content: string;
+  author_photo: string | null;
+  author_designation: string | null;
+  related: Pick<Post, 'id' | 'title' | 'slug' | 'cover_image' | 'cover_image_alt'>[];
+};
 
 export type Faq = { id: number; question: string; answer: string; category: string };
 

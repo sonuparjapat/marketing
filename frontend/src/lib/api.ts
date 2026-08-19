@@ -52,6 +52,7 @@ export type Post = {
   slug: string;
   excerpt: string;
   cover_image: string | null;
+  cover_image_alt: string | null;
   category: string;
   tags: string[];
   author: string;
@@ -61,8 +62,16 @@ export type Post = {
 
 export type PostDetail = Post & {
   content: string;
-  related: Pick<Post, 'id' | 'title' | 'slug' | 'excerpt' | 'cover_image'>[];
+  author_id: number | null;
+  author_name: string | null;
+  author_photo: string | null;
+  author_designation: string | null;
+  author_bio: string | null;
+  author_linkedin_url: string | null;
+  related: Pick<Post, 'id' | 'title' | 'slug' | 'excerpt' | 'cover_image' | 'cover_image_alt'>[];
 };
+
+export type BlogCategory = { id: number; name: string; slug: string; sort_order: number };
 
 export type TeamMember = {
   id: number;
@@ -108,8 +117,14 @@ export const getCaseStudy = (slug: string) => fetchApi<CaseStudyDetail>(`/case-s
 export const getTestimonials = () => fetchApi<Testimonial[]>('/testimonials').catch(() => []);
 
 export const getPosts = (query = '') =>
-  fetchApi<{ items: Post[]; total: number }>(`/posts${query}`).catch(() => ({ items: [], total: 0 }));
+  fetchApi<{ items: Post[]; total: number; page: number; limit: number }>(`/posts${query}`).catch(() => ({
+    items: [],
+    total: 0,
+    page: 1,
+    limit: 9,
+  }));
 export const getPost = (slug: string) => fetchApi<PostDetail>(`/posts/${slug}`, 0).catch(() => null);
+export const getBlogCategories = () => fetchApi<BlogCategory[]>('/blog-categories').catch(() => []);
 
 export const getTeam = () => fetchApi<TeamMember[]>('/team').catch(() => []);
 

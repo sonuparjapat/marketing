@@ -62,6 +62,14 @@ export function PostEditor({ postId }: { postId?: number }) {
   const [loading, setLoading] = useState(Boolean(postId));
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [team, setTeam] = useState<TeamMember[]>([]);
+  const [guestAuthor, setGuestAuthor] = useState(false);
+
+  useEffect(() => {
+    apiClient.get('/admin/blog-categories').then((res) => setCategories(res.data.data));
+    apiClient.get('/admin/team', { params: { limit: 100 } }).then((res) => setTeam(res.data.data.items));
+  }, []);
 
   useEffect(() => {
     if (!postId) return;
@@ -70,6 +78,7 @@ export function PostEditor({ postId }: { postId?: number }) {
       .then((res) => {
         setPost(res.data.data);
         setSlugTouched(true);
+        setGuestAuthor(!res.data.data.author_id);
       })
       .finally(() => setLoading(false));
   }, [postId]);
@@ -201,32 +210,87 @@ export function PostEditor({ postId }: { postId?: number }) {
           <div className="border border-line bg-bg2 p-5">
             <h3 className="mb-4 text-xs uppercase tracking-[0.2em] text-accent">Cover image</h3>
             <ImageUploadField value={post.cover_image} onChange={(url) => update('cover_image', url)} />
+            <label className="mt-4 block">
+              <span className="mb-2 block text-xs uppercase tracking-wide text-muted">Alt text</span>
+              <input
+                type="text"
+                value={post.cover_image_alt}
+                onChange={(e) => update('cover_image_alt', e.target.value)}
+                placeholder="Describe the image for screen readers & SEO"
+                className="w-full border border-line bg-bg px-3 py-2 text-sm placeholder:text-faint focus:border-accent focus:outline-none"
+              />
+            </label>
           </div>
 
           <div className="border border-line bg-bg2 p-5">
             <h3 className="mb-4 text-xs uppercase tracking-[0.2em] text-accent">Organize</h3>
             <label className="mb-4 block">
-              <span className="mb-2 block text-xs uppercase tracking-wide text-muted">Category</span>
-              <input
-                type="text"
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-xs uppercase tracking-wide text-muted">Category</span>
+                <Link href="/admin/blog-categories" className="text-[11px] text-accent hover:opacity-80">
+                  Manage categories
+                </Link>
+              </div>
+              <select
                 value={post.category}
                 onChange={(e) => update('category', e.target.value)}
-                placeholder="Strategy, SEO, Brand…"
-                className="w-full border border-line bg-bg px-3 py-2 text-sm placeholder:text-faint focus:border-accent focus:outline-none"
-              />
+                className="w-full border border-line bg-bg px-3 py-2 text-sm focus:border-accent focus:outline-none"
+              >
+                <option value="">Select a category…</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.name}>
+                    {c.name}
+                  </option>
+                ))}
+                {post.category && !categories.some((c) => c.name === post.category) && (
+                  <option value={post.category}>{post.category} (no longer in the list)</option>
+                )}
+              </select>
             </label>
             <label className="mb-4 block">
               <span className="mb-2 block text-xs uppercase tracking-wide text-muted">Tags</span>
               <TagsInput value={post.tags} onChange={(tags) => update('tags', tags)} />
             </label>
             <label className="block">
-              <span className="mb-2 block text-xs uppercase tracking-wide text-muted">Author</span>
-              <input
-                type="text"
-                value={post.author}
-                onChange={(e) => update('author', e.target.value)}
-                className="w-full border border-line bg-bg px-3 py-2 text-sm focus:border-accent focus:outline-none"
-              />
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-xs uppercase tracking-wide text-muted">Author</span>
+                <button
+                  type="button"
+                  onClick={() => setGuestAuthor((v) => !v)}
+                  className="text-[11px] text-accent hover:opacity-80"
+                >
+                  {guestAuthor ? 'Pick from team' : 'Guest author'}
+                </button>
+              </div>
+              {guestAuthor ? (
+                <input
+                  type="text"
+                  value={post.author}
+                  onChange={(e) => {
+                    update('author', e.target.value);
+                    update('author_id', null);
+                  }}
+                  className="w-full border border-line bg-bg px-3 py-2 text-sm focus:border-accent focus:outline-none"
+                />
+              ) : (
+                <select
+                  value={post.author_id ?? ''}
+                  onChange={(e) => {
+                    const id = e.target.value ? Number(e.target.value) : null;
+                    update('author_id', id);
+                    const member = team.find((t) => t.id === id);
+                    if (member) update('author', member.name);
+                  }}
+                  className="w-full border border-line bg-bg px-3 py-2 text-sm focus:border-accent focus:outline-none"
+                >
+                  <option value="">Select a team member…</option>
+                  {team.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name} — {t.designation}
+                    </option>
+                  ))}
+                </select>
+              )}
             </label>
           </div>
 
