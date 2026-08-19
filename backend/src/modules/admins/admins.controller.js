@@ -4,25 +4,33 @@ const pool = require('../../config/db');
 const asyncHandler = require('../../utils/asyncHandler');
 const { ok, fail } = require('../../utils/response');
 
+const SELECT_FIELDS = `
+  admins.id, admins.name, admins.email, admins.role, admins.is_active,
+  admins.last_login, admins.created_at, admins.department_id, departments.name AS department_name
+`;
+
 const listAdmins = asyncHandler(async (req, res) => {
-  const result = await pool.query(
-    'SELECT id, name, email, role, is_active, last_login, created_at FROM admins ORDER BY created_at ASC'
-  );
+  const result = await pool.query(`
+    SELECT ${SELECT_FIELDS} FROM admins
+    LEFT JOIN departments ON departments.id = admins.department_id
+    ORDER BY admins.created_at ASC
+  `);
   ok(res, { items: result.rows, page: 1, limit: result.rows.length, total: result.rows.length });
 });
 
 const createAdmin = asyncHandler(async (req, res) => {
-  const { name, email, password, role } = req.body;
+  const { name, email, password, role, department_id } = req.body;
   if (!name || !email || !password) return fail(res, 'Name, email and password are required', 400);
   if (!validator.isEmail(email)) return fail(res, 'Please provide a valid email', 400);
   if (password.length < 8) return fail(res, 'Password must be at least 8 characters', 400);
 
+  const finalRole = role === 'super_admin' ? 'super_admin' : 'editor';
   const hash = await bcrypt.hash(password, 12);
   try {
     const result = await pool.query(
-      `INSERT INTO admins (name, email, password_hash, role) VALUES ($1, $2, $3, $4)
-       RETURNING id, name, email, role, is_active, created_at`,
-      [name, email.trim().toLowerCase(), hash, role === 'super_admin' ? 'super_admin' : 'editor']
+      `INSERT INTO admins (name, email, password_hash, role, department_id) VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, name, email, role, is_active, department_id, created_at`,
+      [name, email.trim().toLowerCase(), hash, finalRole, finalRole === 'super_admin' ? null : department_id || null]
     );
     ok(res, result.rows[0], 201);
   } catch (err) {
@@ -31,17 +39,43 @@ const createAdmin = asyncHandler(async (req, res) => {
   }
 });
 
-const setActive = asyncHandler(async (req, res) => {
-  const { is_active } = req.body;
-  if (typeof is_active !== 'boolean') return fail(res, 'is_active (boolean) is required', 400);
-  if (Number(req.params.id) === req.admin.id) return fail(res, "You can't deactivate your own account", 400);
+const updateAdmin = asyncHandler(async (req, res) => {
+  const { name, role, department_id, is_active } = req.body;
+  const isSelf = Number(req.params.id) === req.admin.id;
+  if (isSelf && is_active === false) return fail(res, "You can't deactivate your own account", 400);
 
+  const fields = [];
+  const values = [];
+  if (name !== undefined) {
+    values.push(name);
+    fields.push(`name = $${values.length}`);
+  }
+  if (role !== undefined) {
+    const finalRole = role === 'super_admin' ? 'super_admin' : 'editor';
+    values.push(finalRole);
+    fields.push(`role = $${values.length}`);
+    if (finalRole === 'super_admin') fields.push('department_id = NULL');
+  }
+  if (department_id !== undefined && role !== 'super_admin') {
+    // Harmless even if this admin's existing (unchanged) role happens to be super_admin —
+    // department_id is simply ignored for super_admin accounts everywhere it's read.
+    values.push(department_id || null);
+    fields.push(`department_id = $${values.length}`);
+  }
+  if (is_active !== undefined) {
+    values.push(is_active);
+    fields.push(`is_active = $${values.length}`);
+  }
+  if (!fields.length) return fail(res, 'Nothing to update', 400);
+
+  values.push(req.params.id);
   const result = await pool.query(
-    'UPDATE admins SET is_active = $1 WHERE id = $2 RETURNING id, name, email, role, is_active',
-    [is_active, req.params.id]
+    `UPDATE admins SET ${fields.join(', ')} WHERE id = $${values.length}
+     RETURNING id, name, email, role, is_active, department_id`,
+    values
   );
   if (!result.rows[0]) return fail(res, 'Admin not found', 404);
   ok(res, result.rows[0]);
 });
 
-module.exports = { listAdmins, createAdmin, setActive };
+module.exports = { listAdmins, createAdmin, updateAdmin };

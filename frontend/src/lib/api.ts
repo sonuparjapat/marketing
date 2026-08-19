@@ -126,6 +126,9 @@ export const getFaqs = (category?: string) =>
 export const getPage = (slug: string) => fetchApi<Page>(`/pages/${slug}`).catch(() => null);
 export const getHomepageSections = () => fetchApi<HomepageSection[]>('/homepage-sections').catch(() => []);
 
+export type DocPage = { doc_type: string; title: string; content: string; updated_at: string };
+export const getDoc = (type: string) => fetchApi<DocPage>(`/docs/${type}`, 0).catch(() => null);
+
 export function sectionsMap(sections: HomepageSection[]): Record<string, boolean> {
   const map: Record<string, boolean> = {};
   for (const s of sections) map[s.section_key] = s.is_enabled;

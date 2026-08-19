@@ -5,7 +5,11 @@ import apiClient from '@/lib/apiClient';
 import { RichTextEditor } from './RichTextEditor';
 import { ImageUploadField } from './ImageUploadField';
 import { useToast } from '@/components/Toast';
-import { Skeleton } from '@/components/Skeleton';
+import { TableSkeleton } from '@/components/Skeleton';
+import { useAdminAuth } from '@/context/AdminAuthContext';
+import { Modal } from '@/components/ui/Modal';
+import { Button } from '@/components/ui/Button';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 export type FieldType = 'text' | 'textarea' | 'richtext' | 'image' | 'boolean' | 'number' | 'string-array' | 'json' | 'select';
 
@@ -42,6 +46,11 @@ export function ResourceManager<T extends Row>({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const { show } = useToast();
+  const { hasPermission } = useAdminAuth();
+  const resource = apiPath.replace(/^\/admin\//, '').replace(/-/g, '_');
+  const canCreate = hasPermission(`${resource}.create`);
+  const canEdit = hasPermission(`${resource}.edit`);
+  const canDelete = hasPermission(`${resource}.delete`);
 
   const load = async () => {
     setLoading(true);
@@ -131,94 +140,85 @@ export function ResourceManager<T extends Row>({
   };
 
   const modalOpen = creating || editing !== null;
+  const hasRowActions = canEdit || canDelete;
 
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="font-serif text-2xl">{title}</h1>
-        <button onClick={openCreate} className="bg-accent px-5 py-2.5 text-sm font-bold text-bg hover:opacity-90">
-          + New
-        </button>
+        {canCreate && <Button onClick={openCreate}>+ New</Button>}
       </div>
 
-      <div className="overflow-x-auto border border-line">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-line bg-bg2 text-left text-xs uppercase tracking-wide text-faint">
-              {columns.map((c) => (
-                <th key={c.key} className="px-4 py-3">
-                  {c.label}
-                </th>
-              ))}
-              <th className="px-4 py-3" />
-            </tr>
-          </thead>
-          <tbody>
-            {loading &&
-              !items.length &&
-              Array.from({ length: 5 }).map((_, i) => (
-                <tr key={`skeleton-${i}`} className="border-b border-line last:border-0">
+      {loading && !items.length ? (
+        <div className="border border-line">
+          <TableSkeleton rows={5} cols={columns.length} />
+        </div>
+      ) : !items.length ? (
+        <EmptyState title="Nothing here yet" description={canCreate ? `Create the first ${title.toLowerCase()} to get started.` : undefined} />
+      ) : (
+        <div className="overflow-x-auto border border-line">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-line bg-bg2 text-left text-xs uppercase tracking-wide text-faint">
+                {columns.map((c) => (
+                  <th key={c.key} className="px-4 py-3">
+                    {c.label}
+                  </th>
+                ))}
+                {hasRowActions && <th className="px-4 py-3" />}
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((row) => (
+                <tr key={row.id} className="border-b border-line last:border-0 hover:bg-bg2/50">
                   {columns.map((c) => (
                     <td key={c.key} className="px-4 py-3">
-                      <Skeleton className="h-4 w-full" />
+                      {c.render ? c.render(row) : String(row[c.key] ?? '')}
                     </td>
                   ))}
-                  <td className="px-4 py-3" />
+                  {hasRowActions && (
+                    <td className="whitespace-nowrap px-4 py-3 text-right">
+                      {canEdit && (
+                        <button onClick={() => openEdit(row)} className="mr-4 text-accent hover:opacity-80">
+                          Edit
+                        </button>
+                      )}
+                      {canDelete && (
+                        <button onClick={() => onDelete(row)} className="text-red-400 hover:opacity-80">
+                          Delete
+                        </button>
+                      )}
+                    </td>
+                  )}
                 </tr>
               ))}
-            {items.map((row) => (
-              <tr key={row.id} className="border-b border-line last:border-0 hover:bg-bg2/50">
-                {columns.map((c) => (
-                  <td key={c.key} className="px-4 py-3">
-                    {c.render ? c.render(row) : String(row[c.key] ?? '')}
-                  </td>
-                ))}
-                <td className="whitespace-nowrap px-4 py-3 text-right">
-                  <button onClick={() => openEdit(row)} className="mr-4 text-accent hover:opacity-80">
-                    Edit
-                  </button>
-                  <button onClick={() => onDelete(row)} className="text-red-400 hover:opacity-80">
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {!loading && !items.length && (
-              <tr>
-                <td colSpan={columns.length + 1} className="px-4 py-8 text-center text-faint">
-                  Nothing here yet.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6">
-          <div className="max-h-[85vh] w-full max-w-lg overflow-y-auto border border-line bg-bg p-8">
-            <h2 className="mb-6 font-serif text-xl">{creating ? `New ${title}` : `Edit ${title}`}</h2>
-            <div className="space-y-5">
-              {fields.map((f) => (
-                <FieldInput key={f.name} field={f} value={form[f.name]} onChange={(v) => setForm((p) => ({ ...p, [f.name]: v }))} />
-              ))}
-            </div>
-            {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
-            <div className="mt-7 flex justify-end gap-3">
-              <button onClick={close} className="px-5 py-2.5 text-sm text-muted hover:text-fg">
-                Cancel
-              </button>
-              <button
-                onClick={onSave}
-                disabled={saving}
-                className="bg-accent px-6 py-2.5 text-sm font-bold text-bg hover:opacity-90 disabled:opacity-60"
-              >
-                {saving ? 'Saving…' : 'Save'}
-              </button>
-            </div>
-          </div>
+            </tbody>
+          </table>
         </div>
       )}
+
+      <Modal
+        open={modalOpen}
+        onClose={close}
+        title={creating ? `New ${title}` : `Edit ${title}`}
+        footer={
+          <>
+            <Button variant="ghost" onClick={close}>
+              Cancel
+            </Button>
+            <Button onClick={onSave} loading={saving}>
+              Save
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-5">
+          {fields.map((f) => (
+            <FieldInput key={f.name} field={f} value={form[f.name]} onChange={(v) => setForm((p) => ({ ...p, [f.name]: v }))} />
+          ))}
+        </div>
+        {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
+      </Modal>
     </div>
   );
 }

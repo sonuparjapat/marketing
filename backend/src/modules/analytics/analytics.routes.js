@@ -1,8 +1,8 @@
 const express = require('express');
 const { getAnalytics } = require('./analytics.controller');
-const { adminAuth } = require('../../middleware/auth');
+const { adminAuth, checkPermission } = require('../../middleware/auth');
 
 const adminRouter = express.Router();
-adminRouter.get('/', adminAuth, getAnalytics);
+adminRouter.get('/', adminAuth, checkPermission('analytics.view'), getAnalytics);
 
 module.exports = { adminRouter };

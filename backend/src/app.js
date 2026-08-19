@@ -34,6 +34,8 @@ const adminLogs = require('./modules/adminLogs/adminLogs.routes');
 const analytics = require('./modules/analytics/analytics.routes');
 const tracking = require('./modules/tracking/tracking.routes');
 const docs = require('./modules/docs/docs.routes');
+const departments = require('./modules/departments/departments.routes');
+const permissions = require('./modules/permissions/permissions.routes');
 
 const app = express();
 
@@ -82,6 +84,7 @@ app.use('/api/faqs', faqs.publicRouter);
 app.use('/api/pages', pages.publicRouter);
 app.use('/api/homepage-sections', homepageSections.publicRouter);
 app.use('/api/track', tracking.publicRouter);
+app.use('/api/docs', docs.publicRouter);
 
 // ── Admin API ───────────────────────────────────────────────
 app.use('/api/admin', auditLog);
@@ -108,6 +111,8 @@ app.use('/api/admin/admins', admins.adminRouter);
 app.use('/api/admin/logs', adminLogs.adminRouter);
 app.use('/api/admin/analytics', analytics.adminRouter);
 app.use('/api/admin/docs', docs.adminRouter);
+app.use('/api/admin/departments', departments.adminRouter);
+app.use('/api/admin/permissions', permissions.adminRouter);
 
 app.use(notFound);
 app.use(errorHandler);

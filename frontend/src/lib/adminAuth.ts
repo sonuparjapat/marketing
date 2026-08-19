@@ -1,4 +1,12 @@
-export type AdminUser = { id: number; name: string; email: string; role: string };
+export type AdminUser = {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+  department_id: number | null;
+  department_name?: string | null;
+  permissions: string[];
+};
 
 export function getAdminToken(): string | null {
   if (typeof window === 'undefined') return null;

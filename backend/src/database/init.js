@@ -282,8 +282,38 @@ async function initDB() {
     await client.query(`ALTER TABLE admins ALTER COLUMN role SET DEFAULT 'editor';`);
     await client.query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;`);
 
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS departments (
+        id            SERIAL PRIMARY KEY,
+        name          VARCHAR(100) UNIQUE NOT NULL,
+        description   TEXT,
+        created_at    TIMESTAMP DEFAULT NOW()
+      );
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS permissions (
+        id            SERIAL PRIMARY KEY,
+        key           VARCHAR(80) UNIQUE NOT NULL,
+        module        VARCHAR(40) NOT NULL,
+        action        VARCHAR(20) NOT NULL,
+        label         VARCHAR(150) NOT NULL
+      );
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_permissions_module ON permissions(module);`);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS department_permissions (
+        department_id   INT NOT NULL REFERENCES departments(id) ON DELETE CASCADE,
+        permission_id    INT NOT NULL REFERENCES permissions(id) ON DELETE CASCADE,
+        PRIMARY KEY (department_id, permission_id)
+      );
+    `);
+
+    await client.query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS department_id INT REFERENCES departments(id) ON DELETE SET NULL;`);
+
     await client.query('COMMIT');
-    console.log('Database schema is up to date (20 tables verified/created).');
+    console.log('Database schema is up to date (23 tables verified/created).');
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;
@@ -297,6 +327,51 @@ async function initDB() {
   await seedDefaultHomepageSections();
   await seedDefaultNavLinks();
   await seedDefaultDocs();
+  await seedPermissions();
+}
+
+// The permission catalog — every module a department can be granted access to,
+// and the actions available within it. Deliberately excludes "admins" and
+// "departments" themselves: managing admin accounts and permissions stays
+// Super Admin-only regardless of department, so there's no scenario where a
+// department could grant itself more access.
+const PERMISSION_MODULES = [
+  { module: 'leads', label: 'Leads', actions: ['view', 'edit'] },
+  { module: 'callbacks', label: 'Callbacks', actions: ['view', 'edit'] },
+  { module: 'subscribers', label: 'Subscribers', actions: ['view', 'export'] },
+  { module: 'posts', label: 'Blog Posts', actions: ['view', 'create', 'edit', 'delete'] },
+  { module: 'case_studies', label: 'Case Studies', actions: ['view', 'create', 'edit', 'delete'] },
+  { module: 'services', label: 'Services', actions: ['view', 'create', 'edit', 'delete'] },
+  { module: 'testimonials', label: 'Testimonials', actions: ['view', 'create', 'edit', 'delete'] },
+  { module: 'team', label: 'Team', actions: ['view', 'create', 'edit', 'delete'] },
+  { module: 'faqs', label: 'FAQs', actions: ['view', 'create', 'edit', 'delete'] },
+  { module: 'pages', label: 'Pages', actions: ['view', 'edit'] },
+  { module: 'nav_links', label: 'Nav Links', actions: ['view', 'create', 'edit', 'delete'] },
+  { module: 'homepage_stats', label: 'Homepage Stats', actions: ['view', 'create', 'edit', 'delete'] },
+  { module: 'why_us', label: 'Why Us', actions: ['view', 'create', 'edit', 'delete'] },
+  { module: 'client_logos', label: 'Client Logos', actions: ['view', 'create', 'edit', 'delete'] },
+  { module: 'homepage_sections', label: 'Homepage Sections', actions: ['view', 'edit'] },
+  { module: 'media', label: 'Media Library', actions: ['view', 'upload', 'delete'] },
+  { module: 'settings', label: 'Settings', actions: ['view', 'edit'] },
+  { module: 'docs', label: 'Docs', actions: ['view', 'edit'] },
+  { module: 'analytics', label: 'Analytics', actions: ['view'] },
+  { module: 'logs', label: 'Activity Log', actions: ['view'] },
+];
+
+const ACTION_LABELS = { view: 'View', create: 'Create', edit: 'Edit', delete: 'Delete', upload: 'Upload', export: 'Export' };
+
+async function seedPermissions() {
+  for (const { module, label, actions } of PERMISSION_MODULES) {
+    for (const action of actions) {
+      const key = `${module}.${action}`;
+      const permLabel = `${ACTION_LABELS[action] || action} ${label}`;
+      await pool.query(
+        `INSERT INTO permissions (key, module, action, label) VALUES ($1, $2, $3, $4)
+         ON CONFLICT (key) DO NOTHING`,
+        [key, module, action, permLabel]
+      );
+    }
+  }
 }
 
 async function seedAdmin() {

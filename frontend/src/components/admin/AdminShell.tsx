@@ -2,84 +2,75 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState, type ReactNode } from 'react';
-import { getAdminUser, clearAdminSession, getAdminToken, type AdminUser } from '@/lib/adminAuth';
+import { useEffect, useState } from 'react';
+import { useAdminAuth } from '@/context/AdminAuthContext';
 import { useAdminSocket } from '@/lib/useAdminSocket';
 import { useToast } from '@/components/Toast';
+import { PageLoader } from '@/components/ui/Spinner';
 
-const NAV_GROUPS: { label: string; items: { href: string; label: string }[] }[] = [
+type NavItem = { href: string; label: string; permission?: string };
+
+const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
   { label: '', items: [{ href: '/admin', label: 'Dashboard' }] },
   {
     label: 'Inbox',
     items: [
-      { href: '/admin/leads', label: 'Leads' },
-      { href: '/admin/callbacks', label: 'Callbacks' },
-      { href: '/admin/subscribers', label: 'Subscribers' },
+      { href: '/admin/leads', label: 'Leads', permission: 'leads.view' },
+      { href: '/admin/callbacks', label: 'Callbacks', permission: 'callbacks.view' },
+      { href: '/admin/subscribers', label: 'Subscribers', permission: 'subscribers.view' },
     ],
   },
   {
     label: 'Content',
     items: [
-      { href: '/admin/posts', label: 'Blog' },
-      { href: '/admin/case-studies', label: 'Case Studies' },
-      { href: '/admin/services', label: 'Services' },
-      { href: '/admin/testimonials', label: 'Testimonials' },
-      { href: '/admin/team', label: 'Team' },
-      { href: '/admin/faqs', label: 'FAQs' },
-      { href: '/admin/pages', label: 'Pages' },
+      { href: '/admin/posts', label: 'Blog', permission: 'posts.view' },
+      { href: '/admin/case-studies', label: 'Case Studies', permission: 'case_studies.view' },
+      { href: '/admin/services', label: 'Services', permission: 'services.view' },
+      { href: '/admin/testimonials', label: 'Testimonials', permission: 'testimonials.view' },
+      { href: '/admin/team', label: 'Team', permission: 'team.view' },
+      { href: '/admin/faqs', label: 'FAQs', permission: 'faqs.view' },
+      { href: '/admin/pages', label: 'Pages', permission: 'pages.view' },
     ],
   },
   {
     label: 'Homepage',
     items: [
-      { href: '/admin/homepage-sections', label: 'Sections' },
-      { href: '/admin/homepage-stats', label: 'Stats' },
-      { href: '/admin/why-us', label: 'Why Us' },
-      { href: '/admin/client-logos', label: 'Client Logos' },
-      { href: '/admin/nav-links', label: 'Nav Links' },
+      { href: '/admin/homepage-sections', label: 'Sections', permission: 'homepage_sections.view' },
+      { href: '/admin/homepage-stats', label: 'Stats', permission: 'homepage_stats.view' },
+      { href: '/admin/why-us', label: 'Why Us', permission: 'why_us.view' },
+      { href: '/admin/client-logos', label: 'Client Logos', permission: 'client_logos.view' },
+      { href: '/admin/nav-links', label: 'Nav Links', permission: 'nav_links.view' },
     ],
   },
   {
     label: 'Insights',
     items: [
-      { href: '/admin/analytics', label: 'Analytics' },
-      { href: '/admin/logs', label: 'Activity Log' },
+      { href: '/admin/analytics', label: 'Analytics', permission: 'analytics.view' },
+      { href: '/admin/logs', label: 'Activity Log', permission: 'logs.view' },
     ],
   },
   {
     label: 'Docs',
     items: [
-      { href: '/admin/docs/user-manual', label: 'User Manual' },
-      { href: '/admin/docs/testing', label: 'Testing Guide' },
-      { href: '/admin/docs/developer', label: 'Developer Docs' },
+      { href: '/admin/docs/user-manual', label: 'User Manual', permission: 'docs.view' },
+      { href: '/admin/docs/testing', label: 'Testing Guide', permission: 'docs.view' },
+      { href: '/admin/docs/developer', label: 'Developer Docs', permission: 'docs.view' },
     ],
   },
   {
     label: '',
     items: [
-      { href: '/admin/media', label: 'Media Library' },
-      { href: '/admin/settings', label: 'Settings' },
+      { href: '/admin/media', label: 'Media Library', permission: 'media.view' },
+      { href: '/admin/settings', label: 'Settings', permission: 'settings.view' },
     ],
   },
 ];
 
-export function AdminShell({ children }: { children: ReactNode }) {
+export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const router = useRouter();
-  const [admin, setAdmin] = useState<AdminUser | null>(null);
-  const [checked, setChecked] = useState(false);
+  const { admin, loading, isSuperAdmin, hasPermission, logout } = useAdminAuth();
   const [inboxBadge, setInboxBadge] = useState(0);
   const { show } = useToast();
-
-  useEffect(() => {
-    const token = getAdminToken();
-    if (!token) {
-      router.replace('/admin/login');
-      return;
-    }
-    setAdmin(getAdminUser());
-    setChecked(true);
-  }, [router]);
 
   useAdminSocket({
     onNewLead: (data) => {
@@ -98,15 +89,20 @@ export function AdminShell({ children }: { children: ReactNode }) {
     if (pathname === '/admin/leads' || pathname === '/admin/callbacks') setInboxBadge(0);
   }, [pathname]);
 
-  const navGroups =
-    admin?.role === 'super_admin'
-      ? NAV_GROUPS.map((g, i) =>
-          i === NAV_GROUPS.length - 1 ? { ...g, items: [...g.items, { href: '/admin/admins', label: 'Admins' }] } : g
-        )
-      : NAV_GROUPS;
+  if (loading || !admin) {
+    return <PageLoader label="Checking session…" />;
+  }
 
-  if (!checked) {
-    return <div className="flex min-h-screen items-center justify-center text-sm text-faint">Checking session…</div>;
+  const navGroups = NAV_GROUPS.map((group) => ({
+    ...group,
+    items: group.items.filter((item) => !item.permission || hasPermission(item.permission)),
+  })).filter((group) => group.items.length > 0);
+
+  if (isSuperAdmin) {
+    navGroups[navGroups.length - 1].items.push(
+      { href: '/admin/departments', label: 'Departments' },
+      { href: '/admin/admins', label: 'Admins' }
+    );
   }
 
   return (
@@ -149,14 +145,11 @@ export function AdminShell({ children }: { children: ReactNode }) {
 
       <div className="flex-1">
         <header className="flex items-center justify-between border-b border-line px-8 py-4">
-          <span className="text-sm text-muted">Signed in as {admin?.name || admin?.email}</span>
-          <button
-            onClick={() => {
-              clearAdminSession();
-              router.replace('/admin/login');
-            }}
-            className="text-sm text-muted hover:text-accent"
-          >
+          <span className="text-sm text-muted">
+            Signed in as {admin?.name || admin?.email}
+            {admin?.department_name && <span className="text-faint"> · {admin.department_name}</span>}
+          </span>
+          <button onClick={logout} className="text-sm text-muted hover:text-accent">
             Log out
           </button>
         </header>

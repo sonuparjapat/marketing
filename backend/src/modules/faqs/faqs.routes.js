@@ -1,15 +1,15 @@
 const express = require('express');
 const ctrl = require('./faqs.controller');
-const { adminAuth } = require('../../middleware/auth');
+const { adminAuth, checkPermission } = require('../../middleware/auth');
 
 const publicRouter = express.Router();
 publicRouter.get('/', ctrl.listFaqs);
 
 const adminRouter = express.Router();
-adminRouter.get('/', adminAuth, ctrl.adminList);
-adminRouter.get('/:id', adminAuth, ctrl.adminGetOne);
-adminRouter.post('/', adminAuth, ctrl.createFaq);
-adminRouter.put('/:id', adminAuth, ctrl.updateFaq);
-adminRouter.delete('/:id', adminAuth, ctrl.removeFaq);
+adminRouter.get('/', adminAuth, checkPermission('faqs.view'), ctrl.adminList);
+adminRouter.get('/:id', adminAuth, checkPermission('faqs.view'), ctrl.adminGetOne);
+adminRouter.post('/', adminAuth, checkPermission('faqs.create'), ctrl.createFaq);
+adminRouter.put('/:id', adminAuth, checkPermission('faqs.edit'), ctrl.updateFaq);
+adminRouter.delete('/:id', adminAuth, checkPermission('faqs.delete'), ctrl.removeFaq);
 
 module.exports = { publicRouter, adminRouter };

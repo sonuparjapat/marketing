@@ -2,9 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import apiClient from '@/lib/apiClient';
-import { getAdminUser } from '@/lib/adminAuth';
+import { useAdminAuth } from '@/context/AdminAuthContext';
 import { useToast } from '@/components/Toast';
-import { Skeleton } from '@/components/Skeleton';
+import { TableSkeleton } from '@/components/Skeleton';
+import { Modal } from '@/components/ui/Modal';
+import { Button } from '@/components/ui/Button';
+import { Input, Select } from '@/components/ui/Field';
 
 type AdminRow = {
   id: number;
@@ -12,24 +15,42 @@ type AdminRow = {
   email: string;
   role: string;
   is_active: boolean;
+  department_id: number | null;
+  department_name: string | null;
   last_login: string | null;
   created_at: string;
 };
 
+type Department = { id: number; name: string };
+
+function errMessage(err: unknown, fallback: string) {
+  if (err && typeof err === 'object' && 'response' in err) {
+    return (err as { response?: { data?: { message?: string } } }).response?.data?.message || fallback;
+  }
+  return fallback;
+}
+
 export default function AdminAdminsPage() {
   const [admins, setAdmins] = useState<AdminRow[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'editor' });
+  const [editing, setEditing] = useState<AdminRow | null>(null);
+  const [createForm, setCreateForm] = useState({ name: '', email: '', password: '', role: 'editor', department_id: '' });
+  const [editForm, setEditForm] = useState({ name: '', role: 'editor', department_id: '', is_active: true });
   const [saving, setSaving] = useState(false);
   const { show } = useToast();
-  const me = getAdminUser();
+  const { admin: me } = useAdminAuth();
 
   const load = async () => {
     setLoading(true);
     try {
-      const res = await apiClient.get('/admin/admins');
-      setAdmins(res.data.data.items);
+      const [adminsRes, deptRes] = await Promise.all([
+        apiClient.get('/admin/admins'),
+        apiClient.get('/admin/departments'),
+      ]);
+      setAdmins(adminsRes.data.data.items);
+      setDepartments(deptRes.data.data.items);
     } catch {
       show('Only a super admin can manage other admins.', 'error');
     } finally {
@@ -39,39 +60,57 @@ export default function AdminAdminsPage() {
 
   useEffect(() => {
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const openCreate = () => {
+    setCreateForm({ name: '', email: '', password: '', role: 'editor', department_id: '' });
+    setCreating(true);
+  };
+
+  const openEdit = (admin: AdminRow) => {
+    setEditForm({
+      name: admin.name,
+      role: admin.role,
+      department_id: admin.department_id ? String(admin.department_id) : '',
+      is_active: admin.is_active,
+    });
+    setEditing(admin);
+  };
 
   const onCreate = async () => {
     setSaving(true);
     try {
-      await apiClient.post('/admin/admins', form);
+      await apiClient.post('/admin/admins', {
+        ...createForm,
+        department_id: createForm.role === 'super_admin' || !createForm.department_id ? null : Number(createForm.department_id),
+      });
       show('Admin created.');
       setCreating(false);
-      setForm({ name: '', email: '', password: '', role: 'editor' });
       await load();
-    } catch (err: unknown) {
-      const message =
-        err && typeof err === 'object' && 'response' in err
-          ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
-          : undefined;
-      show(message || 'Something went wrong.', 'error');
+    } catch (err) {
+      show(errMessage(err, 'Something went wrong.'), 'error');
     } finally {
       setSaving(false);
     }
   };
 
-  const toggleActive = async (admin: AdminRow) => {
+  const onSaveEdit = async () => {
+    if (!editing) return;
+    setSaving(true);
     try {
-      await apiClient.patch(`/admin/admins/${admin.id}`, { is_active: !admin.is_active });
+      await apiClient.patch(`/admin/admins/${editing.id}`, {
+        name: editForm.name,
+        role: editForm.role,
+        department_id: editForm.role === 'super_admin' || !editForm.department_id ? null : Number(editForm.department_id),
+        is_active: editForm.is_active,
+      });
+      show('Admin updated.');
+      setEditing(null);
       await load();
-      show(admin.is_active ? 'Admin deactivated.' : 'Admin reactivated.');
-    } catch (err: unknown) {
-      const message =
-        err && typeof err === 'object' && 'response' in err
-          ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
-          : undefined;
-      show(message || 'Something went wrong.', 'error');
+    } catch (err) {
+      show(errMessage(err, 'Something went wrong.'), 'error');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -79,16 +118,12 @@ export default function AdminAdminsPage() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="font-serif text-2xl">Admins</h1>
-        <button onClick={() => setCreating(true)} className="bg-accent px-5 py-2.5 text-sm font-bold text-bg hover:opacity-90">
-          + New admin
-        </button>
+        <Button onClick={openCreate}>+ New admin</Button>
       </div>
 
       {loading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-14 w-full" />
-          ))}
+        <div className="border border-line">
+          <TableSkeleton rows={3} cols={5} />
         </div>
       ) : (
         <div className="overflow-x-auto border border-line">
@@ -98,6 +133,7 @@ export default function AdminAdminsPage() {
                 <th className="px-4 py-3">Name</th>
                 <th className="px-4 py-3">Email</th>
                 <th className="px-4 py-3">Role</th>
+                <th className="px-4 py-3">Department</th>
                 <th className="px-4 py-3">Last login</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3" />
@@ -108,17 +144,16 @@ export default function AdminAdminsPage() {
                 <tr key={a.id} className="border-b border-line last:border-0">
                   <td className="px-4 py-3 font-medium">{a.name}</td>
                   <td className="px-4 py-3 text-muted">{a.email}</td>
-                  <td className="px-4 py-3 text-muted">{a.role}</td>
+                  <td className="px-4 py-3 text-muted">{a.role === 'super_admin' ? 'Super admin' : 'Editor'}</td>
+                  <td className="px-4 py-3 text-muted">{a.role === 'super_admin' ? '—' : a.department_name || 'Unassigned'}</td>
                   <td className="px-4 py-3 text-muted">{a.last_login ? new Date(a.last_login).toLocaleDateString() : '—'}</td>
                   <td className="px-4 py-3">
                     <span className={a.is_active ? 'text-accent' : 'text-faint'}>{a.is_active ? 'Active' : 'Deactivated'}</span>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    {a.id !== me?.id && (
-                      <button onClick={() => toggleActive(a)} className="text-accent hover:opacity-80">
-                        {a.is_active ? 'Deactivate' : 'Reactivate'}
-                      </button>
-                    )}
+                    <button onClick={() => openEdit(a)} className="text-accent hover:opacity-80">
+                      Edit
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -127,65 +162,104 @@ export default function AdminAdminsPage() {
         </div>
       )}
 
-      {creating && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6">
-          <div className="w-full max-w-md border border-line bg-bg p-8">
-            <h2 className="mb-6 font-serif text-xl">New admin</h2>
-            <div className="space-y-5">
-              <label className="block">
-                <span className="mb-2 block text-xs uppercase tracking-wide text-muted">Name</span>
-                <input
-                  type="text"
-                  value={form.name}
-                  onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-                  className="w-full border border-line bg-bg2 px-3.5 py-2.5 text-sm focus:border-accent focus:outline-none"
-                />
-              </label>
-              <label className="block">
-                <span className="mb-2 block text-xs uppercase tracking-wide text-muted">Email</span>
-                <input
-                  type="email"
-                  value={form.email}
-                  onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
-                  className="w-full border border-line bg-bg2 px-3.5 py-2.5 text-sm focus:border-accent focus:outline-none"
-                />
-              </label>
-              <label className="block">
-                <span className="mb-2 block text-xs uppercase tracking-wide text-muted">Password (min 8 characters)</span>
-                <input
-                  type="password"
-                  value={form.password}
-                  onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
-                  className="w-full border border-line bg-bg2 px-3.5 py-2.5 text-sm focus:border-accent focus:outline-none"
-                />
-              </label>
-              <label className="block">
-                <span className="mb-2 block text-xs uppercase tracking-wide text-muted">Role</span>
-                <select
-                  value={form.role}
-                  onChange={(e) => setForm((p) => ({ ...p, role: e.target.value }))}
-                  className="w-full border border-line bg-bg2 px-3.5 py-2.5 text-sm focus:border-accent focus:outline-none"
-                >
-                  <option value="editor">Editor — manages content</option>
-                  <option value="super_admin">Super admin — manages everything</option>
-                </select>
-              </label>
-            </div>
-            <div className="mt-7 flex justify-end gap-3">
-              <button onClick={() => setCreating(false)} className="px-5 py-2.5 text-sm text-muted hover:text-fg">
-                Cancel
-              </button>
-              <button
-                onClick={onCreate}
-                disabled={saving}
-                className="bg-accent px-6 py-2.5 text-sm font-bold text-bg hover:opacity-90 disabled:opacity-60"
-              >
-                {saving ? 'Creating…' : 'Create'}
-              </button>
-            </div>
-          </div>
+      <Modal
+        open={creating}
+        onClose={() => setCreating(false)}
+        title="New admin"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setCreating(false)}>
+              Cancel
+            </Button>
+            <Button onClick={onCreate} loading={saving}>
+              Create
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-5">
+          <Input label="Name" value={createForm.name} onChange={(e) => setCreateForm((p) => ({ ...p, name: e.target.value }))} />
+          <Input
+            label="Email"
+            type="email"
+            value={createForm.email}
+            onChange={(e) => setCreateForm((p) => ({ ...p, email: e.target.value }))}
+          />
+          <Input
+            label="Password (min 8 characters)"
+            type="password"
+            value={createForm.password}
+            onChange={(e) => setCreateForm((p) => ({ ...p, password: e.target.value }))}
+          />
+          <Select label="Role" value={createForm.role} onChange={(e) => setCreateForm((p) => ({ ...p, role: e.target.value }))}>
+            <option value="editor">Editor — permissions from department</option>
+            <option value="super_admin">Super admin — manages everything</option>
+          </Select>
+          {createForm.role !== 'super_admin' && (
+            <Select
+              label="Department"
+              value={createForm.department_id}
+              onChange={(e) => setCreateForm((p) => ({ ...p, department_id: e.target.value }))}
+            >
+              <option value="">Unassigned (no permissions)</option>
+              {departments.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </Select>
+          )}
         </div>
-      )}
+      </Modal>
+
+      <Modal
+        open={editing !== null}
+        onClose={() => setEditing(null)}
+        title={`Edit ${editing?.name}`}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setEditing(null)}>
+              Cancel
+            </Button>
+            <Button onClick={onSaveEdit} loading={saving}>
+              Save
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-5">
+          <Input label="Name" value={editForm.name} onChange={(e) => setEditForm((p) => ({ ...p, name: e.target.value }))} />
+          <Select label="Role" value={editForm.role} onChange={(e) => setEditForm((p) => ({ ...p, role: e.target.value }))}>
+            <option value="editor">Editor — permissions from department</option>
+            <option value="super_admin">Super admin — manages everything</option>
+          </Select>
+          {editForm.role !== 'super_admin' && (
+            <Select
+              label="Department"
+              value={editForm.department_id}
+              onChange={(e) => setEditForm((p) => ({ ...p, department_id: e.target.value }))}
+            >
+              <option value="">Unassigned (no permissions)</option>
+              {departments.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </Select>
+          )}
+          {editing?.id !== me?.id && (
+            <label className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                checked={editForm.is_active}
+                onChange={(e) => setEditForm((p) => ({ ...p, is_active: e.target.checked }))}
+                className="h-4 w-4 accent-accent"
+              />
+              <span className="text-sm">Active</span>
+            </label>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 }

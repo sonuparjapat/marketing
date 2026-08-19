@@ -22,8 +22,29 @@ const login = asyncHandler(async (req, res) => {
   const match = await bcrypt.compare(password, admin.password_hash);
   if (!match) return fail(res, 'Invalid credentials', 401);
 
+  let permissions = [];
+  let departmentName = null;
+  if (admin.role !== 'super_admin' && admin.department_id) {
+    const permResult = await pool.query(
+      `SELECT permissions.key FROM department_permissions
+       JOIN permissions ON permissions.id = department_permissions.permission_id
+       WHERE department_permissions.department_id = $1`,
+      [admin.department_id]
+    );
+    permissions = permResult.rows.map((r) => r.key);
+    const deptResult = await pool.query('SELECT name FROM departments WHERE id = $1', [admin.department_id]);
+    departmentName = deptResult.rows[0]?.name || null;
+  }
+
   const token = jwt.sign(
-    { id: admin.id, email: admin.email, role: admin.role, name: admin.name },
+    {
+      id: admin.id,
+      email: admin.email,
+      role: admin.role,
+      name: admin.name,
+      department_id: admin.department_id,
+      permissions,
+    },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
   );
@@ -37,7 +58,18 @@ const login = asyncHandler(async (req, res) => {
     maxAge: 7 * 24 * 60 * 60 * 1000,
   });
 
-  ok(res, { token, admin: { id: admin.id, name: admin.name, email: admin.email, role: admin.role } });
+  ok(res, {
+    token,
+    admin: {
+      id: admin.id,
+      name: admin.name,
+      email: admin.email,
+      role: admin.role,
+      department_id: admin.department_id,
+      department_name: departmentName,
+      permissions,
+    },
+  });
 });
 
 const logout = asyncHandler(async (req, res) => {

@@ -21,10 +21,22 @@ function adminAuth(req, res, next) {
   }
 }
 
-// Editors can manage content; only super_admin manages other admins, settings and appearance.
+// Only super_admin manages other admins, departments, and site-wide settings/appearance —
+// this is intentionally not delegable via department permissions.
 function requireSuperAdmin(req, res, next) {
   if (req.admin?.role !== 'super_admin') return fail(res, 'Only a super admin can do this', 403);
   next();
 }
 
-module.exports = { adminAuth, extractToken, requireSuperAdmin };
+// Granular per-action permission check. Super Admin always passes. Editors pass only if
+// their department was granted this exact key at login time (permissions are embedded in
+// the JWT, not re-queried per request — see admin.controller.js's login()).
+function checkPermission(key) {
+  return (req, res, next) => {
+    if (req.admin?.role === 'super_admin') return next();
+    if (Array.isArray(req.admin?.permissions) && req.admin.permissions.includes(key)) return next();
+    return fail(res, 'You do not have permission to do this', 403);
+  };
+}
+
+module.exports = { adminAuth, extractToken, requireSuperAdmin, checkPermission };

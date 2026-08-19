@@ -1,15 +1,15 @@
 const express = require('express');
 const ctrl = require('./homepageStats.controller');
-const { adminAuth } = require('../../middleware/auth');
+const { adminAuth, checkPermission } = require('../../middleware/auth');
 
 const publicRouter = express.Router();
 publicRouter.get('/', ctrl.listStats);
 
 const adminRouter = express.Router();
-adminRouter.get('/', adminAuth, ctrl.adminList);
-adminRouter.get('/:id', adminAuth, ctrl.adminGetOne);
-adminRouter.post('/', adminAuth, ctrl.createStat);
-adminRouter.put('/:id', adminAuth, ctrl.updateStat);
-adminRouter.delete('/:id', adminAuth, ctrl.removeStat);
+adminRouter.get('/', adminAuth, checkPermission('homepage_stats.view'), ctrl.adminList);
+adminRouter.get('/:id', adminAuth, checkPermission('homepage_stats.view'), ctrl.adminGetOne);
+adminRouter.post('/', adminAuth, checkPermission('homepage_stats.create'), ctrl.createStat);
+adminRouter.put('/:id', adminAuth, checkPermission('homepage_stats.edit'), ctrl.updateStat);
+adminRouter.delete('/:id', adminAuth, checkPermission('homepage_stats.delete'), ctrl.removeStat);
 
 module.exports = { publicRouter, adminRouter };
