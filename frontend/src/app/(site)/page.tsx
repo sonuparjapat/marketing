@@ -8,6 +8,7 @@ import {
   getHomepageStats,
   getWhyUs,
   getClientLogos,
+  getBanners,
   getHomepageSections,
   getPublicSettings,
   sectionsMap,
@@ -16,10 +17,11 @@ import { MotionReveal } from '@/components/MotionReveal';
 import { CountUp } from '@/components/CountUp';
 import { LogoMarquee } from '@/components/LogoMarquee';
 import { TestimonialCarousel } from '@/components/TestimonialCarousel';
+import { HeroBannerSlider } from '@/components/HeroBannerSlider';
 import { ArrowRightIcon, SERVICE_ICONS } from '@/components/icons';
 
 export default async function HomePage() {
-  const [services, caseStudies, testimonials, posts, stats, whyUs, logos, sections, settings] = await Promise.all([
+  const [services, caseStudies, testimonials, posts, stats, whyUs, logos, banners, sections, settings] = await Promise.all([
     getServices(),
     getCaseStudies(),
     getTestimonials(),
@@ -27,6 +29,7 @@ export default async function HomePage() {
     getHomepageStats(),
     getWhyUs(),
     getClientLogos(),
+    getBanners('hero'),
     getHomepageSections(),
     getPublicSettings(),
   ]);
@@ -185,6 +188,17 @@ export default async function HomePage() {
                 </div>
               </MotionReveal>
             )}
+          </div>
+        </section>
+      )}
+
+      {/* BANNERS */}
+      {isOn('banners') && banners.length > 0 && (
+        <section className="border-b border-line px-6 py-16 md:px-16">
+          <div className="mx-auto max-w-[1312px]">
+            <MotionReveal>
+              <HeroBannerSlider banners={banners} />
+            </MotionReveal>
           </div>
         </section>
       )}

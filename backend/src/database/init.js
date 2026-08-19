@@ -93,6 +93,25 @@ async function initDB() {
     `);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_services_active ON services(is_active, sort_order);`);
 
+    // Admin-managed hero banners/carousel — image + copy + CTA an admin fully controls, no deploy needed.
+    // "placement" separates the homepage hero rotation from a smaller secondary promo strip.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS banners (
+        id            SERIAL PRIMARY KEY,
+        tag_label     VARCHAR(120),
+        title         VARCHAR(300) NOT NULL,
+        subtitle      TEXT,
+        image_url     TEXT NOT NULL,
+        button_label  VARCHAR(80),
+        button_link   VARCHAR(300),
+        placement     VARCHAR(20) DEFAULT 'hero',
+        is_active     BOOLEAN DEFAULT TRUE,
+        sort_order    INT DEFAULT 0,
+        created_at    TIMESTAMP DEFAULT NOW()
+      );
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_banners_active ON banners(is_active, placement, sort_order);`);
+
     await client.query(`
       CREATE TABLE IF NOT EXISTS testimonials (
         id                   SERIAL PRIMARY KEY,
@@ -399,6 +418,7 @@ const PERMISSION_MODULES = [
   { key: 'why_us', label: 'Why Us', group: 'Homepage' },
   { key: 'client_logos', label: 'Client Logos', group: 'Homepage' },
   { key: 'homepage_sections', label: 'Homepage Sections', group: 'Homepage' },
+  { key: 'banners', label: 'Banners', group: 'Homepage' },
   { key: 'media', label: 'Media Library', group: 'System' },
   { key: 'settings', label: 'Settings', group: 'System' },
   { key: 'analytics', label: 'Analytics', group: 'Insights' },
@@ -534,7 +554,7 @@ async function seedDefaultPages() {
 
 async function seedDefaultHomepageSections() {
   const sections = [
-    'hero', 'logos', 'services', 'stats', 'case_studies', 'why_us', 'testimonials', 'blog', 'cta',
+    'hero', 'banners', 'logos', 'services', 'process', 'stats', 'case_studies', 'why_us', 'testimonials', 'blog', 'cta',
   ];
   for (let i = 0; i < sections.length; i++) {
     await pool.query(

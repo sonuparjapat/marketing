@@ -37,8 +37,8 @@ export function ContactForm({ services, budgets }: { services: string[]; budgets
 
   if (status === 'done') {
     return (
-      <div className="border border-accent-dim bg-bg2 p-8">
-        <p className="font-serif-italic text-xl text-accent">Thanks — message received.</p>
+      <div className="rounded-xl border border-accent/30 bg-accent/5 p-8">
+        <p className="font-serif-italic grad-text text-xl">Thanks — message received.</p>
         <p className="mt-2 text-sm text-muted">We&apos;ll get back to you within 24 hours.</p>
       </div>
     );
@@ -63,14 +63,14 @@ export function ContactForm({ services, budgets }: { services: string[]; budgets
         <textarea
           name="message"
           rows={4}
-          className="w-full resize-none border border-line bg-bg2 px-4 py-3 text-sm text-fg placeholder:text-faint focus:border-accent focus:outline-none"
+          className="w-full resize-none rounded-lg border border-line-soft bg-bg2 px-4 py-3 text-sm text-fg placeholder:text-faint focus:border-accent focus:outline-none"
           placeholder="Tell us about your brand and goals"
         />
       </label>
       <button
         type="submit"
         disabled={status === 'loading'}
-        className="mt-2 inline-flex w-fit items-center gap-2.5 bg-accent px-8 py-4 text-sm font-bold text-bg transition-opacity hover:opacity-90 disabled:opacity-60"
+        className="group mt-2 inline-flex w-fit items-center gap-2.5 bg-accent px-8 py-4 text-sm font-bold text-bg transition-all hover:-translate-y-1 hover:shadow-[0_20px_40px_-14px_var(--accent)] disabled:pointer-events-none disabled:opacity-60"
       >
         {status === 'loading' ? 'Sending…' : 'Send Message'}
       </button>
@@ -101,8 +101,8 @@ function Field({
       <input
         type={type}
         name={name}
-        className={`w-full border bg-bg2 px-4 py-3 text-sm text-fg placeholder:text-faint focus:outline-none ${
-          error ? 'border-red-400' : 'border-line focus:border-accent'
+        className={`w-full rounded-lg border bg-bg2 px-4 py-3 text-sm text-fg placeholder:text-faint focus:outline-none ${
+          error ? 'border-red-400' : 'border-line-soft focus:border-accent'
         }`}
       />
       {error && <span className="mt-1.5 block text-xs text-red-400">{error}</span>}
@@ -117,7 +117,7 @@ function SelectField({ label, name, options }: { label: string; name: string; op
       <select
         name={name}
         defaultValue=""
-        className="w-full border border-line bg-bg2 px-4 py-3 text-sm text-fg focus:border-accent focus:outline-none"
+        className="w-full rounded-lg border border-line-soft bg-bg2 px-4 py-3 text-sm text-fg focus:border-accent focus:outline-none"
       >
         <option value="" disabled>
           Select an option

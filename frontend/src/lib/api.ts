@@ -90,6 +90,16 @@ export type NavLinks = { header: NavLink[]; footer: NavLink[] };
 export type HomepageStat = { id: number; value: string; label: string };
 export type WhyUsPoint = { id: number; point: string };
 export type ClientLogo = { id: number; name: string; logo_url: string | null };
+export type Banner = {
+  id: number;
+  tag_label: string | null;
+  title: string;
+  subtitle: string | null;
+  image_url: string;
+  button_label: string | null;
+  button_link: string | null;
+  placement: 'hero' | 'promo';
+};
 export type Faq = { id: number; question: string; answer: string; category: string };
 export type Page = {
   id: number;
@@ -149,6 +159,8 @@ export const getNavLinks = () =>
 export const getHomepageStats = () => fetchApi<HomepageStat[]>('/homepage-stats').catch(() => []);
 export const getWhyUs = () => fetchApi<WhyUsPoint[]>('/why-us').catch(() => []);
 export const getClientLogos = () => fetchApi<ClientLogo[]>('/client-logos').catch(() => []);
+export const getBanners = (placement: 'hero' | 'promo' = 'hero') =>
+  fetchApi<Banner[]>(`/banners?placement=${placement}`).catch(() => []);
 export const getFaqs = (category?: string) =>
   fetchApi<Faq[]>(`/faqs${category ? `?category=${encodeURIComponent(category)}` : ''}`).catch(() => []);
 export const getPage = (slug: string) => fetchApi<Page>(`/pages/${slug}`).catch(() => null);

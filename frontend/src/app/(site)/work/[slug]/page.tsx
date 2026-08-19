@@ -42,7 +42,7 @@ export default async function CaseStudyDetailPage({ params }: { params: Promise<
         </Link>
 
         {cs.is_featured && (
-          <span className="mb-5 inline-block bg-accent px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-bg">
+          <span className="mb-5 inline-block rounded-full bg-gradient-to-r from-accent to-[oklch(0.68_0.15_60)] px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-wide text-bg">
             Built &amp; owned by {agencyName}
           </span>
         )}
@@ -50,15 +50,15 @@ export default async function CaseStudyDetailPage({ params }: { params: Promise<
         <h1 className="mb-10 mt-3 font-serif text-4xl font-normal leading-tight md:text-[48px]">{cs.title}</h1>
 
         {cs.cover_image && (
-          <div className="relative mb-10 aspect-[16/9] overflow-hidden border border-line bg-bg2">
+          <div className="relative mb-10 aspect-[16/9] overflow-hidden rounded-2xl border border-line-soft bg-bg2">
             <Image src={cs.cover_image} alt={cs.title} fill className="object-cover" sizes="900px" />
           </div>
         )}
 
-        <div className="mb-14 grid grid-cols-2 gap-px border border-line bg-line md:grid-cols-4">
+        <div className="glass mb-14 grid grid-cols-2 gap-px overflow-hidden rounded-2xl md:grid-cols-4">
           {cs.results_json.map((r) => (
-            <div key={r.metric} className="bg-bg p-6">
-              <div className="font-serif-italic text-3xl text-accent">{r.value}</div>
+            <div key={r.metric} className="bg-bg/40 p-6 transition-colors hover:bg-bg2/60">
+              <div className="font-serif-italic grad-text text-3xl">{r.value}</div>
               <div className="mt-1 text-xs text-faint">{r.metric}{r.label ? `, ${r.label}` : ''}</div>
             </div>
           ))}
@@ -84,7 +84,7 @@ export default async function CaseStudyDetailPage({ params }: { params: Promise<
           </div>
         )}
 
-        <div className="flex flex-wrap items-center justify-between gap-6 border-t border-line pt-8">
+        <div className="flex flex-wrap items-center justify-between gap-6 border-t border-line-soft pt-8">
           <div className="flex gap-6 text-sm">
             {cs.prev && (
               <Link href={`/work/${cs.prev.slug}`} className="text-muted hover:text-accent">
@@ -97,8 +97,11 @@ export default async function CaseStudyDetailPage({ params }: { params: Promise<
               </Link>
             )}
           </div>
-          <Link href="/contact" className="inline-flex items-center gap-2.5 bg-accent px-7 py-3.5 text-sm font-bold text-bg hover:opacity-90">
-            Start a project like this <ArrowRightIcon size={16} />
+          <Link
+            href="/contact"
+            className="group inline-flex items-center gap-2.5 bg-accent px-7 py-3.5 text-sm font-bold text-bg transition-all hover:-translate-y-1 hover:shadow-[0_20px_40px_-14px_var(--accent)]"
+          >
+            Start a project like this <ArrowRightIcon size={16} className="transition-transform group-hover:translate-x-1" />
           </Link>
         </div>
       </div>
