@@ -50,9 +50,18 @@ export default async function HomePage() {
       {/* HERO */}
       {isOn('hero') && (
         <section className="relative overflow-hidden border-b border-line px-6 pb-24 pt-20 md:px-16 md:pb-28 md:pt-24">
-          <div className="pointer-events-none absolute right-6 top-4 select-none font-serif-italic text-[220px] leading-none text-bg2 md:right-16 md:text-[280px]">
-            01
-          </div>
+          <video
+            className="absolute inset-0 h-full w-full object-cover"
+            src="/homesection.mp4"
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="auto"
+            aria-hidden="true"
+          />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-bg/80 via-bg/85 to-bg" />
+          <div className="pointer-events-none absolute inset-0 bg-bg/40" />
           <div className="relative mx-auto grid max-w-[1312px] items-end gap-12 md:grid-cols-[1.15fr_0.85fr]">
             <MotionReveal>
               <div className="mb-7 flex items-center gap-2.5">
@@ -87,7 +96,7 @@ export default async function HomePage() {
 
             {featured && (
               <MotionReveal delay={0.15}>
-                <div className="relative border border-line bg-bg2 p-8">
+                <div className="relative border border-line bg-bg2/90 p-8 backdrop-blur-sm">
                   <div className="pointer-events-none absolute inset-2 border border-accent-dim" />
                   <div className="mb-6 flex items-center justify-between">
                     <span className="text-[11px] uppercase tracking-wider text-accent">Real brand. Real results.</span>

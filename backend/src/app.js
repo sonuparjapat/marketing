@@ -8,6 +8,7 @@ const morgan = require('morgan');
 
 const { notFound, errorHandler } = require('./middleware/errorHandler');
 const { globalLimiter } = require('./middleware/rateLimiters');
+const auditLog = require('./middleware/auditLog');
 
 const leads = require('./modules/leads/leads.routes');
 const callbacks = require('./modules/callbacks/callbacks.routes');
@@ -28,6 +29,10 @@ const faqs = require('./modules/faqs/faqs.routes');
 const pages = require('./modules/pages/pages.routes');
 const homepageSections = require('./modules/homepageSections/homepageSections.routes');
 const pushTokens = require('./modules/pushTokens/pushTokens.routes');
+const admins = require('./modules/admins/admins.routes');
+const adminLogs = require('./modules/adminLogs/adminLogs.routes');
+const analytics = require('./modules/analytics/analytics.routes');
+const tracking = require('./modules/tracking/tracking.routes');
 
 const app = express();
 
@@ -75,8 +80,10 @@ app.use('/api/client-logos', clientLogos.publicRouter);
 app.use('/api/faqs', faqs.publicRouter);
 app.use('/api/pages', pages.publicRouter);
 app.use('/api/homepage-sections', homepageSections.publicRouter);
+app.use('/api/track', tracking.publicRouter);
 
 // ── Admin API ───────────────────────────────────────────────
+app.use('/api/admin', auditLog);
 app.use('/api/admin', adminAuthRoutes);
 app.use('/api/admin/leads', leads.adminRouter);
 app.use('/api/admin/callbacks', callbacks.adminRouter);
@@ -96,6 +103,9 @@ app.use('/api/admin/faqs', faqs.adminRouter);
 app.use('/api/admin/pages', pages.adminRouter);
 app.use('/api/admin/homepage-sections', homepageSections.adminRouter);
 app.use('/api/admin/push-tokens', pushTokens.adminRouter);
+app.use('/api/admin/admins', admins.adminRouter);
+app.use('/api/admin/logs', adminLogs.adminRouter);
+app.use('/api/admin/analytics', analytics.adminRouter);
 
 app.use(notFound);
 app.use(errorHandler);

@@ -270,6 +270,7 @@ async function initDB() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_page_views_created_at ON page_views(created_at DESC);`);
 
     await client.query(`ALTER TABLE admins ALTER COLUMN role SET DEFAULT 'editor';`);
+    await client.query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;`);
 
     await client.query('COMMIT');
     console.log('Database schema is up to date (19 tables verified/created).');

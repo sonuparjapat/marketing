@@ -21,4 +21,10 @@ function adminAuth(req, res, next) {
   }
 }
 
-module.exports = { adminAuth, extractToken };
+// Editors can manage content; only super_admin manages other admins, settings and appearance.
+function requireSuperAdmin(req, res, next) {
+  if (req.admin?.role !== 'super_admin') return fail(res, 'Only a super admin can do this', 403);
+  next();
+}
+
+module.exports = { adminAuth, extractToken, requireSuperAdmin };

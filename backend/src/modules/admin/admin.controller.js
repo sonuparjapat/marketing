@@ -17,6 +17,7 @@ const login = asyncHandler(async (req, res) => {
   const result = await pool.query('SELECT * FROM admins WHERE email = $1', [email.trim().toLowerCase()]);
   const admin = result.rows[0];
   if (!admin) return fail(res, 'Invalid credentials', 401);
+  if (admin.is_active === false) return fail(res, 'This account has been deactivated', 403);
 
   const match = await bcrypt.compare(password, admin.password_hash);
   if (!match) return fail(res, 'Invalid credentials', 401);

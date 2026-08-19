@@ -40,6 +40,13 @@ const NAV_GROUPS: { label: string; items: { href: string; label: string }[] }[] 
     ],
   },
   {
+    label: 'Insights',
+    items: [
+      { href: '/admin/analytics', label: 'Analytics' },
+      { href: '/admin/logs', label: 'Activity Log' },
+    ],
+  },
+  {
     label: '',
     items: [
       { href: '/admin/media', label: 'Media Library' },
@@ -83,6 +90,13 @@ export function AdminShell({ children }: { children: ReactNode }) {
     if (pathname === '/admin/leads' || pathname === '/admin/callbacks') setInboxBadge(0);
   }, [pathname]);
 
+  const navGroups =
+    admin?.role === 'super_admin'
+      ? NAV_GROUPS.map((g, i) =>
+          i === NAV_GROUPS.length - 1 ? { ...g, items: [...g.items, { href: '/admin/admins', label: 'Admins' }] } : g
+        )
+      : NAV_GROUPS;
+
   if (!checked) {
     return <div className="flex min-h-screen items-center justify-center text-sm text-faint">Checking session…</div>;
   }
@@ -94,7 +108,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
           Anvil <span className="text-accent">/ admin</span>
         </Link>
         <nav className="flex flex-col gap-5">
-          {NAV_GROUPS.map((group, gi) => (
+          {navGroups.map((group, gi) => (
             <div key={gi} className="flex flex-col gap-1">
               {group.label && (
                 <div className="flex items-center gap-2 px-3 pb-1 text-[11px] uppercase tracking-wider text-faint">
