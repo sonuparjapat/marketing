@@ -13,6 +13,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     title: service.title,
     description: service.short_description,
     openGraph: { title: service.title, description: service.short_description },
+    alternates: { canonical: `/services/${slug}` },
   };
 }
 
@@ -45,10 +46,22 @@ export default async function ServiceDetailPage({ params }: { params: Promise<{ 
       }
     : null;
 
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+  const breadcrumbJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: siteUrl },
+      { '@type': 'ListItem', position: 2, name: 'Services', item: `${siteUrl}/services` },
+      { '@type': 'ListItem', position: 3, name: service.title, item: `${siteUrl}/services/${slug}` },
+    ],
+  };
+
   return (
     <main className="px-6 py-24 md:px-16">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       {faqJsonLd && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
       <div className="mx-auto max-w-[1000px]">
         <Link href="/services" className="mb-8 inline-flex items-center gap-2 text-sm text-muted hover:text-accent">
           &larr; All services

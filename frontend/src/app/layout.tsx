@@ -24,10 +24,12 @@ export async function generateMetadata(): Promise<Metadata> {
   const agencyName = settings.agency_name || 'Anvil Digital';
 
   return {
+    metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
     title: { default: title, template: `%s | ${agencyName}` },
     description:
       settings.default_meta_description ||
       'A performance marketing agency for D2C & SME brands in India, built by people who have shipped their own eCommerce brand.',
+    alternates: { canonical: '/' },
   };
 }
 

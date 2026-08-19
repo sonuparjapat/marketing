@@ -6,6 +6,7 @@ import { getCaseStudies } from '@/lib/api';
 export const metadata: Metadata = {
   title: 'Our Work',
   description: 'Case studies from brands we’ve grown — including the D2C brand we built and own ourselves.',
+  alternates: { canonical: '/work' },
 };
 
 export default async function WorkPage() {

@@ -6,6 +6,7 @@ import { ArrowRightIcon, SERVICE_ICONS } from '@/components/icons';
 export const metadata: Metadata = {
   title: 'Services',
   description: 'Six disciplines, one accountable team — performance marketing, SEO, brand, D2C websites, automation and social.',
+  alternates: { canonical: '/services' },
 };
 
 export default async function ServicesPage() {

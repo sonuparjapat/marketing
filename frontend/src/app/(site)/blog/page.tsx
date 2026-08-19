@@ -6,6 +6,7 @@ import { getPosts } from '@/lib/api';
 export const metadata: Metadata = {
   title: 'Blog',
   description: 'Practical notes on performance marketing, SEO and building D2C brands in India.',
+  alternates: { canonical: '/blog' },
 };
 
 export default async function BlogPage({

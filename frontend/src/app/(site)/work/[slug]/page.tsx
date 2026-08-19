@@ -9,7 +9,11 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const cs = await getCaseStudy(slug);
   if (!cs) return {};
-  return { title: cs.title, description: `${cs.client_name} — ${cs.client_industry}` };
+  return {
+    title: cs.title,
+    description: `${cs.client_name} — ${cs.client_industry}`,
+    alternates: { canonical: `/work/${slug}` },
+  };
 }
 
 export default async function CaseStudyDetailPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -17,8 +21,20 @@ export default async function CaseStudyDetailPage({ params }: { params: Promise<
   const cs = await getCaseStudy(slug);
   if (!cs) notFound();
 
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+  const breadcrumbJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: siteUrl },
+      { '@type': 'ListItem', position: 2, name: 'Work', item: `${siteUrl}/work` },
+      { '@type': 'ListItem', position: 3, name: cs.title, item: `${siteUrl}/work/${slug}` },
+    ],
+  };
+
   return (
     <main className="px-6 py-24 md:px-16">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
       <div className="mx-auto max-w-[900px]">
         <Link href="/work" className="mb-8 inline-flex items-center gap-2 text-sm text-muted hover:text-accent">
           &larr; All work

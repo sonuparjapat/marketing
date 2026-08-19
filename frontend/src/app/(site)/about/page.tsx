@@ -9,6 +9,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: page?.meta_title || 'About',
     description: page?.meta_description || "A performance marketing agency that's built and shipped its own D2C brand — not just campaigns for others.",
+    alternates: { canonical: '/about' },
   };
 }
 

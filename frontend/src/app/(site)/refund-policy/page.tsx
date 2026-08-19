@@ -4,7 +4,11 @@ import { getPage } from '@/lib/api';
 
 export async function generateMetadata(): Promise<Metadata> {
   const page = await getPage('refund-policy');
-  return { title: page?.meta_title || page?.title || 'Refund Policy', description: page?.meta_description || undefined };
+  return {
+    title: page?.meta_title || page?.title || 'Refund Policy',
+    description: page?.meta_description || undefined,
+    alternates: { canonical: '/refund-policy' },
+  };
 }
 
 export default async function RefundPolicyPage() {

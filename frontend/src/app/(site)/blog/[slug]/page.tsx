@@ -22,6 +22,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       images: post.cover_image ? [post.cover_image] : undefined,
     },
     twitter: { card: 'summary_large_image', title: post.title, description: post.excerpt },
+    alternates: { canonical: `/blog/${slug}` },
   };
 }
 
@@ -49,10 +50,21 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
     wordCount,
   };
 
+  const breadcrumbJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: siteUrl },
+      { '@type': 'ListItem', position: 2, name: 'Blog', item: `${siteUrl}/blog` },
+      { '@type': 'ListItem', position: 3, name: post.title, item: postUrl },
+    ],
+  };
+
   return (
     <main className="px-6 pb-24 pt-6 md:px-16">
       <ReadingProgressBar />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
 
       <div className="mx-auto max-w-[720px] pt-14">
         <Link href="/blog" className="mb-8 inline-flex items-center gap-2 text-sm text-muted hover:text-accent">

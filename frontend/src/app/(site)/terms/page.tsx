@@ -4,7 +4,11 @@ import { getPage } from '@/lib/api';
 
 export async function generateMetadata(): Promise<Metadata> {
   const page = await getPage('terms');
-  return { title: page?.meta_title || page?.title || 'Terms of Service', description: page?.meta_description || undefined };
+  return {
+    title: page?.meta_title || page?.title || 'Terms of Service',
+    description: page?.meta_description || undefined,
+    alternates: { canonical: '/terms' },
+  };
 }
 
 export default async function TermsPage() {

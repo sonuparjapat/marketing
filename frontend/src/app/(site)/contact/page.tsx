@@ -5,6 +5,7 @@ import { ContactForm } from '@/components/ContactForm';
 export const metadata: Metadata = {
   title: 'Contact',
   description: "Get a free marketing audit from Anvil — a performance agency that's shipped its own D2C brand.",
+  alternates: { canonical: '/contact' },
 };
 
 export default async function ContactPage() {

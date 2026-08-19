@@ -4,7 +4,11 @@ import { getPage } from '@/lib/api';
 
 export async function generateMetadata(): Promise<Metadata> {
   const page = await getPage('privacy-policy');
-  return { title: page?.meta_title || page?.title || 'Privacy Policy', description: page?.meta_description || undefined };
+  return {
+    title: page?.meta_title || page?.title || 'Privacy Policy',
+    description: page?.meta_description || undefined,
+    alternates: { canonical: '/privacy-policy' },
+  };
 }
 
 export default async function PrivacyPolicyPage() {
