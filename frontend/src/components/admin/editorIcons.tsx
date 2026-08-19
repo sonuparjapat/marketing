@@ -127,3 +127,35 @@ export const RedoIcon = ({ size }: IconProps) => (
     <path d="M17 8h4V4M21 8A9 9 0 108 4.3" strokeWidth="1.7" />
   </svg>
 );
+
+export const AlignLeftIcon = ({ size }: IconProps) => (
+  <svg {...base(size)}>
+    <path d="M4 6h16M4 12h10M4 18h13" strokeWidth="1.8" />
+  </svg>
+);
+
+export const AlignCenterIcon = ({ size }: IconProps) => (
+  <svg {...base(size)}>
+    <path d="M4 6h16M7 12h10M5.5 18h13" strokeWidth="1.8" />
+  </svg>
+);
+
+export const AlignRightIcon = ({ size }: IconProps) => (
+  <svg {...base(size)}>
+    <path d="M4 6h16M10 12h10M7 18h13" strokeWidth="1.8" />
+  </svg>
+);
+
+export const TableIcon = ({ size }: IconProps) => (
+  <svg {...base(size)}>
+    <rect x="3" y="4" width="18" height="16" rx="1.5" strokeWidth="1.6" />
+    <path d="M3 10h18M3 16h18M10 4v16" strokeWidth="1.6" />
+  </svg>
+);
+
+export const YoutubeIcon = ({ size }: IconProps) => (
+  <svg {...base(size)}>
+    <rect x="2.5" y="6" width="19" height="12" rx="3" strokeWidth="1.6" />
+    <path d="M10.5 9.5l5 2.5-5 2.5z" fill="currentColor" stroke="none" />
+  </svg>
+);

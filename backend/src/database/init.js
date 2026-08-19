@@ -312,8 +312,20 @@ async function initDB() {
 
     await client.query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS department_id INT REFERENCES departments(id) ON DELETE SET NULL;`);
 
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS blog_categories (
+        id            SERIAL PRIMARY KEY,
+        name          VARCHAR(100) UNIQUE NOT NULL,
+        slug          VARCHAR(100) UNIQUE NOT NULL,
+        sort_order    INT DEFAULT 0
+      );
+    `);
+
+    await client.query(`ALTER TABLE posts ADD COLUMN IF NOT EXISTS author_id INT REFERENCES team(id) ON DELETE SET NULL;`);
+    await client.query(`ALTER TABLE posts ADD COLUMN IF NOT EXISTS cover_image_alt VARCHAR(300);`);
+
     await client.query('COMMIT');
-    console.log('Database schema is up to date (23 tables verified/created).');
+    console.log('Database schema is up to date (24 tables verified/created).');
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;
@@ -340,6 +352,7 @@ const PERMISSION_MODULES = [
   { module: 'callbacks', label: 'Callbacks', actions: ['view', 'edit'] },
   { module: 'subscribers', label: 'Subscribers', actions: ['view', 'export'] },
   { module: 'posts', label: 'Blog Posts', actions: ['view', 'create', 'edit', 'delete'] },
+  { module: 'blog_categories', label: 'Blog Categories', actions: ['view', 'create', 'edit', 'delete'] },
   { module: 'case_studies', label: 'Case Studies', actions: ['view', 'create', 'edit', 'delete'] },
   { module: 'services', label: 'Services', actions: ['view', 'create', 'edit', 'delete'] },
   { module: 'testimonials', label: 'Testimonials', actions: ['view', 'create', 'edit', 'delete'] },

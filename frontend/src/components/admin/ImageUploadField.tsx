@@ -48,14 +48,25 @@ export function ImageUploadField({ value, onChange }: { value: string; onChange:
             placeholder="Image URL, or upload a file"
             className="mb-2 w-full border border-line bg-bg2 px-3 py-2 text-xs focus:border-accent focus:outline-none"
           />
-          <button
-            type="button"
-            onClick={() => inputRef.current?.click()}
-            disabled={uploading}
-            className="border border-line px-3 py-1.5 text-xs hover:border-accent hover:text-accent disabled:opacity-60"
-          >
-            {uploading ? 'Uploading…' : 'Upload file'}
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => inputRef.current?.click()}
+              disabled={uploading}
+              className="border border-line px-3 py-1.5 text-xs hover:border-accent hover:text-accent disabled:opacity-60"
+            >
+              {uploading ? 'Uploading…' : value ? 'Replace' : 'Upload file'}
+            </button>
+            {value && (
+              <button
+                type="button"
+                onClick={() => onChange('')}
+                className="border border-line px-3 py-1.5 text-xs text-red-400 hover:border-red-400"
+              >
+                Remove
+              </button>
+            )}
+          </div>
           <input
             ref={inputRef}
             type="file"

@@ -16,13 +16,18 @@ export type Post = {
   excerpt: string;
   content: string;
   cover_image: string;
+  cover_image_alt: string;
   category: string;
   tags: string[];
   author: string;
+  author_id: number | null;
   meta_title: string;
   meta_description: string;
   is_published: boolean;
 };
+
+type Category = { id: number; name: string; slug: string };
+type TeamMember = { id: number; name: string; designation: string; is_active: boolean };
 
 const EMPTY: Omit<Post, 'id'> = {
   title: '',
@@ -30,9 +35,11 @@ const EMPTY: Omit<Post, 'id'> = {
   excerpt: '',
   content: '',
   cover_image: '',
+  cover_image_alt: '',
   category: '',
   tags: [],
   author: 'Anvil Team',
+  author_id: null,
   meta_title: '',
   meta_description: '',
   is_published: false,

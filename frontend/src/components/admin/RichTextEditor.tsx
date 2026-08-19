@@ -10,6 +10,11 @@ import Highlight from '@tiptap/extension-highlight';
 import Placeholder from '@tiptap/extension-placeholder';
 import CharacterCount from '@tiptap/extension-character-count';
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
+import TextAlign from '@tiptap/extension-text-align';
+import { TextStyle } from '@tiptap/extension-text-style';
+import { Color } from '@tiptap/extension-color';
+import { TableKit } from '@tiptap/extension-table';
+import { Youtube } from '@tiptap/extension-youtube';
 import { createLowlight, common } from 'lowlight';
 import { useState } from 'react';
 import apiClient from '@/lib/apiClient';
@@ -32,6 +37,11 @@ import {
   ImageIcon2,
   UndoIcon,
   RedoIcon,
+  AlignLeftIcon,
+  AlignCenterIcon,
+  AlignRightIcon,
+  TableIcon,
+  YoutubeIcon,
 } from './editorIcons';
 
 const lowlight = createLowlight(common);
@@ -89,6 +99,11 @@ export function RichTextEditor({
       Placeholder.configure({ placeholder }),
       CharacterCount,
       CodeBlockLowlight.configure({ lowlight }),
+      TextStyle,
+      Color,
+      TextAlign.configure({ types: ['heading', 'paragraph'] }),
+      TableKit.configure({ table: { resizable: true } }),
+      Youtube.configure({ width: 560, height: 315, HTMLAttributes: { class: 'rounded-sm' } }),
     ],
     content: value,
     immediatelyRender: false,
@@ -132,6 +147,18 @@ export function RichTextEditor({
       return;
     }
     editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+  };
+
+  const insertTable = () => {
+    if (!editor) return;
+    editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
+  };
+
+  const embedYoutube = () => {
+    if (!editor) return;
+    const url = window.prompt('YouTube video URL');
+    if (!url) return;
+    editor.commands.setYoutubeVideo({ src: url });
   };
 
   if (!editor) return null;
@@ -193,6 +220,34 @@ export function RichTextEditor({
         </ToolbarButton>
         <ToolbarButton title="Divider" onClick={() => editor.chain().focus().setHorizontalRule().run()}>
           <HrIcon size={15} />
+        </ToolbarButton>
+        <Divider />
+        <ToolbarButton title="Align left" active={editor.isActive({ textAlign: 'left' })} onClick={() => editor.chain().focus().setTextAlign('left').run()}>
+          <AlignLeftIcon size={15} />
+        </ToolbarButton>
+        <ToolbarButton title="Align center" active={editor.isActive({ textAlign: 'center' })} onClick={() => editor.chain().focus().setTextAlign('center').run()}>
+          <AlignCenterIcon size={15} />
+        </ToolbarButton>
+        <ToolbarButton title="Align right" active={editor.isActive({ textAlign: 'right' })} onClick={() => editor.chain().focus().setTextAlign('right').run()}>
+          <AlignRightIcon size={15} />
+        </ToolbarButton>
+        <label title="Text color" className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-sm text-muted hover:bg-bg hover:text-fg">
+          <span className="text-[13px] font-bold" style={{ color: editor.getAttributes('textStyle').color || undefined }}>
+            A
+          </span>
+          <input
+            type="color"
+            className="sr-only"
+            value={editor.getAttributes('textStyle').color || '#d4af6a'}
+            onChange={(e) => editor.chain().focus().setColor(e.target.value).run()}
+          />
+        </label>
+        <Divider />
+        <ToolbarButton title="Insert table" active={editor.isActive('table')} onClick={insertTable}>
+          <TableIcon size={15} />
+        </ToolbarButton>
+        <ToolbarButton title="Embed YouTube video" onClick={embedYoutube}>
+          <YoutubeIcon size={15} />
         </ToolbarButton>
         <Divider />
         <ToolbarButton title="Link" active={editor.isActive('link')} onClick={setLink}>

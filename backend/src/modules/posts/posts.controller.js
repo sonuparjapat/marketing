@@ -28,7 +28,7 @@ const listPosts = asyncHandler(async (req, res) => {
   const where = `WHERE ${conditions.join(' AND ')}`;
   const totalResult = await pool.query(`SELECT COUNT(*)::int AS count FROM posts ${where}`, params);
   const dataResult = await pool.query(
-    `SELECT id, title, slug, excerpt, cover_image, category, tags, author, views, created_at
+    `SELECT id, title, slug, excerpt, cover_image, cover_image_alt, category, tags, author, views, created_at
      FROM posts ${where} ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
     [...params, limit, offset]
   );
@@ -37,12 +37,18 @@ const listPosts = asyncHandler(async (req, res) => {
 });
 
 const getPost = asyncHandler(async (req, res) => {
-  const result = await pool.query('SELECT * FROM posts WHERE slug = $1 AND is_published = TRUE', [req.params.slug]);
+  const result = await pool.query(
+    `SELECT posts.*, team.name AS author_name, team.photo AS author_photo,
+            team.designation AS author_designation, team.bio AS author_bio, team.linkedin_url AS author_linkedin_url
+     FROM posts LEFT JOIN team ON team.id = posts.author_id
+     WHERE posts.slug = $1 AND posts.is_published = TRUE`,
+    [req.params.slug]
+  );
   if (!result.rows[0]) return fail(res, 'Post not found', 404);
 
   await pool.query('UPDATE posts SET views = views + 1 WHERE id = $1', [result.rows[0].id]);
   const related = await pool.query(
-    `SELECT id, title, slug, excerpt, cover_image FROM posts
+    `SELECT id, title, slug, excerpt, cover_image, cover_image_alt FROM posts
      WHERE category = $1 AND id != $2 AND is_published = TRUE ORDER BY created_at DESC LIMIT 3`,
     [result.rows[0].category, result.rows[0].id]
   );
@@ -51,8 +57,8 @@ const getPost = asyncHandler(async (req, res) => {
 });
 
 const allowedFields = [
-  'title', 'slug', 'excerpt', 'content', 'cover_image', 'category', 'tags',
-  'author', 'meta_title', 'meta_description', 'is_published', 'updated_at',
+  'title', 'slug', 'excerpt', 'content', 'cover_image', 'cover_image_alt', 'category', 'tags',
+  'author', 'author_id', 'meta_title', 'meta_description', 'is_published', 'updated_at',
 ];
 const adminCrud = buildAdminCrud('posts', { allowedFields, defaultOrder: 'created_at DESC' });
 

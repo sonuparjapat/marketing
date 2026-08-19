@@ -24,6 +24,7 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     label: 'Content',
     items: [
       { href: '/admin/posts', label: 'Blog', permission: 'posts.view' },
+      { href: '/admin/blog-categories', label: 'Blog Categories', permission: 'blog_categories.view' },
       { href: '/admin/case-studies', label: 'Case Studies', permission: 'case_studies.view' },
       { href: '/admin/services', label: 'Services', permission: 'services.view' },
       { href: '/admin/testimonials', label: 'Testimonials', permission: 'testimonials.view' },
