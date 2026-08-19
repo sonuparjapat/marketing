@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import apiClient from '@/lib/apiClient';
+import { Pagination } from '@/components/ui/Pagination';
+
+const PAGE_SIZE = 20;
 
 type Subscriber = {
   id: number;
@@ -16,18 +19,21 @@ export default function AdminSubscribersPage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   useEffect(() => {
     (async () => {
+      setLoading(true);
       try {
-        const res = await apiClient.get('/admin/subscribers', { params: { limit: 200 } });
+        const res = await apiClient.get('/admin/subscribers', { params: { page, limit: PAGE_SIZE } });
         setItems(res.data.data.items);
         setTotal(res.data.data.total);
       } finally {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [page]);
 
   const exportCsv = async () => {
     setExporting(true);
@@ -83,6 +89,7 @@ export default function AdminSubscribersPage() {
           </tbody>
         </table>
       </div>
+      <Pagination page={page} totalPages={totalPages} total={total} onChange={setPage} />
     </div>
   );
 }

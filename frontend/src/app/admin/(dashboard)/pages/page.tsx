@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import apiClient from '@/lib/apiClient';
 import { RichTextEditor } from '@/components/admin/RichTextEditor';
 import { useToast } from '@/components/Toast';
+import { useAdminAuth } from '@/context/AdminAuthContext';
 import { Skeleton } from '@/components/Skeleton';
 
 type PageRow = {
@@ -16,6 +17,8 @@ type PageRow = {
 };
 
 export default function AdminPagesPage() {
+  const { hasPermission } = useAdminAuth();
+  const canUpdate = hasPermission('pages.update');
   const [pages, setPages] = useState<PageRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeId, setActiveId] = useState<number | null>(null);
@@ -124,15 +127,17 @@ export default function AdminPagesPage() {
             </div>
             <div className="mt-7 flex justify-end gap-3">
               <button onClick={() => setActiveId(null)} className="px-5 py-2.5 text-sm text-muted hover:text-fg">
-                Cancel
+                {canUpdate ? 'Cancel' : 'Close'}
               </button>
-              <button
-                onClick={onSave}
-                disabled={saving}
-                className="bg-accent px-6 py-2.5 text-sm font-bold text-bg hover:opacity-90 disabled:opacity-60"
-              >
-                {saving ? 'Saving…' : 'Save'}
-              </button>
+              {canUpdate && (
+                <button
+                  onClick={onSave}
+                  disabled={saving}
+                  className="bg-accent px-6 py-2.5 text-sm font-bold text-bg hover:opacity-90 disabled:opacity-60"
+                >
+                  {saving ? 'Saving…' : 'Save'}
+                </button>
+              )}
             </div>
           </div>
         </div>

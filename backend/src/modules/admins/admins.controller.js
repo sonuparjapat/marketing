@@ -78,4 +78,17 @@ const updateAdmin = asyncHandler(async (req, res) => {
   ok(res, result.rows[0]);
 });
 
-module.exports = { listAdmins, createAdmin, updateAdmin };
+// Super Admin resetting another admin's password (or their own) — no current-password check,
+// since this route is already gated to super_admin only. Self-service password changes (any
+// admin changing their own, with current-password verification) live in admin.controller.js.
+const resetPassword = asyncHandler(async (req, res) => {
+  const { password } = req.body;
+  if (!password || password.length < 8) return fail(res, 'Password must be at least 8 characters', 400);
+
+  const hash = await bcrypt.hash(password, 12);
+  const result = await pool.query('UPDATE admins SET password_hash = $1 WHERE id = $2 RETURNING id', [hash, req.params.id]);
+  if (!result.rows[0]) return fail(res, 'Admin not found', 404);
+  ok(res, { id: result.rows[0].id });
+});
+
+module.exports = { listAdmins, createAdmin, updateAdmin, resetPassword };

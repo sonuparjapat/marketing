@@ -117,7 +117,7 @@ const me = asyncHandler(async (req, res) => {
 const stats = asyncHandler(async (req, res) => {
   // The dashboard is reachable by every admin, but lead records carry PII (name/email) — only
   // include them for admins who actually hold leads.view, rather than gating the whole endpoint.
-  const canViewLeads = req.admin.role === 'super_admin' || (req.admin.permissions || []).includes('leads.view');
+  const canViewLeads = req.admin.role === 'super_admin' || (req.admin.permissions || []).includes('leads.read');
 
   const [subscribers, postViews, pendingCallbacks] = await Promise.all([
     pool.query('SELECT COUNT(*)::int AS count FROM subscribers WHERE is_active = TRUE'),
@@ -182,4 +182,24 @@ const uploadImage = asyncHandler(async (req, res) => {
   ok(res, { url, media: result.rows[0] }, 201);
 });
 
-module.exports = { login, logout, me, stats, uploadImage };
+// Self-service — any authenticated admin changing their own password, verified against their
+// current one. Distinct from admins.controller.js's resetPassword, which is Super Admin resetting
+// someone else's password with no current-password check.
+const changeOwnPassword = asyncHandler(async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  if (!currentPassword || !newPassword) return fail(res, 'Current and new password are required', 400);
+  if (newPassword.length < 8) return fail(res, 'New password must be at least 8 characters', 400);
+
+  const result = await pool.query('SELECT password_hash FROM admins WHERE id = $1', [req.admin.id]);
+  const admin = result.rows[0];
+  if (!admin) return fail(res, 'Admin not found', 404);
+
+  const match = await bcrypt.compare(currentPassword, admin.password_hash);
+  if (!match) return fail(res, 'Current password is incorrect', 401);
+
+  const hash = await bcrypt.hash(newPassword, 12);
+  await pool.query('UPDATE admins SET password_hash = $1 WHERE id = $2', [hash, req.admin.id]);
+  ok(res, { updated: true });
+});
+
+module.exports = { login, logout, me, stats, uploadImage, changeOwnPassword };

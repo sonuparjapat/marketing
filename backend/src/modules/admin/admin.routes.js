@@ -11,5 +11,6 @@ router.post('/logout', adminAuth, ctrl.logout);
 router.get('/me', adminAuth, ctrl.me);
 router.get('/stats', adminAuth, ctrl.stats);
 router.post('/upload', adminAuth, checkPermission('media.create'), upload.single('file'), ctrl.uploadImage);
+router.patch('/change-password', adminAuth, ctrl.changeOwnPassword);
 
 module.exports = router;

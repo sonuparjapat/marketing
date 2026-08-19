@@ -2,6 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import apiClient from '@/lib/apiClient';
+import { useAdminAuth } from '@/context/AdminAuthContext';
+import { Pagination } from '@/components/ui/Pagination';
+
+const PAGE_SIZE = 20;
 
 type Lead = {
   id: number;
@@ -21,26 +25,41 @@ type Lead = {
 const STATUSES = ['new', 'contacted', 'qualified', 'proposal', 'won', 'lost'];
 
 export default function AdminLeadsPage() {
+  const { hasPermission } = useAdminAuth();
+  const canUpdate = hasPermission('leads.update');
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
   const [active, setActive] = useState<Lead | null>(null);
   const [notes, setNotes] = useState('');
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  const load = async () => {
+  const load = async (targetPage: number) => {
     setLoading(true);
     try {
-      const res = await apiClient.get('/admin/leads', { params: { limit: 100, status: statusFilter || undefined } });
+      const res = await apiClient.get('/admin/leads', {
+        params: { page: targetPage, limit: PAGE_SIZE, status: statusFilter || undefined },
+      });
       setLeads(res.data.data.items);
+      setTotal(res.data.data.total ?? res.data.data.items.length);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    load();
+    setPage(1);
+    load(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter]);
+
+  useEffect(() => {
+    if (page === 1) return;
+    load(page);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]);
 
   const updateStatus = async (lead: Lead, status: string) => {
     await apiClient.patch(`/admin/leads/${lead.id}`, { status });
@@ -102,17 +121,21 @@ export default function AdminLeadsPage() {
                 <td className="px-4 py-3 text-muted">{lead.source || '—'}</td>
                 <td className="px-4 py-3 text-muted">{new Date(lead.created_at).toLocaleDateString()}</td>
                 <td className="px-4 py-3">
-                  <select
-                    value={lead.status}
-                    onChange={(e) => updateStatus(lead, e.target.value)}
-                    className="border border-line bg-bg2 px-2 py-1.5 text-xs"
-                  >
-                    {STATUSES.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </select>
+                  {canUpdate ? (
+                    <select
+                      value={lead.status}
+                      onChange={(e) => updateStatus(lead, e.target.value)}
+                      className="border border-line bg-bg2 px-2 py-1.5 text-xs"
+                    >
+                      {STATUSES.map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span className="text-xs text-muted">{lead.status}</span>
+                  )}
                 </td>
                 <td className="px-4 py-3 text-right">
                   <button onClick={() => openDetail(lead)} className="text-accent hover:opacity-80">
@@ -131,6 +154,8 @@ export default function AdminLeadsPage() {
           </tbody>
         </table>
       </div>
+
+      <Pagination page={page} totalPages={totalPages} total={total} onChange={setPage} />
 
       {active && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6">
@@ -161,16 +186,19 @@ export default function AdminLeadsPage() {
                 rows={4}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className="w-full resize-none border border-line bg-bg2 px-3.5 py-2.5 text-sm focus:border-accent focus:outline-none"
+                disabled={!canUpdate}
+                className="w-full resize-none border border-line bg-bg2 px-3.5 py-2.5 text-sm focus:border-accent focus:outline-none disabled:opacity-60"
               />
             </label>
             <div className="mt-6 flex justify-end gap-3">
               <button onClick={() => setActive(null)} className="px-5 py-2.5 text-sm text-muted hover:text-fg">
                 Close
               </button>
-              <button onClick={saveNotes} className="bg-accent px-6 py-2.5 text-sm font-bold text-bg hover:opacity-90">
-                Save notes
-              </button>
+              {canUpdate && (
+                <button onClick={saveNotes} className="bg-accent px-6 py-2.5 text-sm font-bold text-bg hover:opacity-90">
+                  Save notes
+                </button>
+              )}
             </div>
           </div>
         </div>

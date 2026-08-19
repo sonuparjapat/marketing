@@ -10,6 +10,7 @@ import { useAdminAuth } from '@/context/AdminAuthContext';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { Pagination } from '@/components/ui/Pagination';
 
 export type FieldType = 'text' | 'textarea' | 'richtext' | 'image' | 'boolean' | 'number' | 'string-array' | 'json' | 'select';
 
@@ -38,8 +39,11 @@ export function ResourceManager<T extends Row>({
   fields: FieldConfig[];
   emptyItem: Record<string, unknown>;
 }) {
+  const PAGE_SIZE = 20;
   const [items, setItems] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [editing, setEditing] = useState<T | null>(null);
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState<Record<string, unknown>>(emptyItem);
@@ -51,21 +55,31 @@ export function ResourceManager<T extends Row>({
   const canCreate = hasPermission(`${resource}.create`);
   const canEdit = hasPermission(`${resource}.update`);
   const canDelete = hasPermission(`${resource}.delete`);
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  const load = async () => {
+  const load = async (targetPage: number) => {
     setLoading(true);
     try {
-      const res = await apiClient.get(apiPath, { params: { limit: 100 } });
+      const res = await apiClient.get(apiPath, { params: { page: targetPage, limit: PAGE_SIZE } });
       setItems(res.data.data.items);
+      setTotal(res.data.data.total ?? res.data.data.items.length);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    load();
+    setPage(1);
+    load(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiPath]);
+
+  useEffect(() => {
+    // page 1 is already fetched by the apiPath effect above — avoid double-fetching it.
+    if (page === 1) return;
+    load(page);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]);
 
   const openCreate = () => {
     setForm(emptyItem);
@@ -118,7 +132,9 @@ export function ResourceManager<T extends Row>({
         await apiClient.put(`${apiPath}/${editing.id}`, payload);
       }
       close();
-      await load();
+      // A new item goes on page 1 by insertion order in most resources; an edit doesn't move pages.
+      await load(creating ? 1 : page);
+      if (creating) setPage(1);
       show(`${title} saved.`);
     } catch (err: unknown) {
       const message =
@@ -135,7 +151,11 @@ export function ResourceManager<T extends Row>({
   const onDelete = async (row: T) => {
     if (!confirm(`Delete this ${title.toLowerCase()}? This can't be undone.`)) return;
     await apiClient.delete(`${apiPath}/${row.id}`);
-    await load();
+    // If that was the last item on this page (and it's not page 1), step back a page rather than
+    // showing an empty page.
+    const targetPage = items.length === 1 && page > 1 ? page - 1 : page;
+    if (targetPage !== page) setPage(targetPage);
+    await load(targetPage);
     show(`${title} deleted.`);
   };
 
@@ -196,6 +216,8 @@ export function ResourceManager<T extends Row>({
           </table>
         </div>
       )}
+
+      <Pagination page={page} totalPages={totalPages} total={total} onChange={setPage} />
 
       <Modal
         open={modalOpen}

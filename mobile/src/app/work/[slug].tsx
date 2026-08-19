@@ -4,12 +4,9 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, spacing, type ThemeColors } from '../../context/theme';
 import { getCaseStudy, CaseStudyDetail } from '../../api/services';
+import { HtmlContent } from '../../components/HtmlContent';
 
 const SITE_URL = process.env.EXPO_PUBLIC_SITE_URL || 'http://localhost:3000';
-
-function stripHtml(html: string) {
-  return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-}
 
 export default function CaseStudyDetailScreen() {
   const colors = useTheme();
@@ -72,14 +69,14 @@ export default function CaseStudyDetailScreen() {
       {cs.challenge && (
         <View style={{ marginTop: 12 }}>
           <Text style={styles.sectionLabel}>The challenge</Text>
-          <Text style={styles.body}>{stripHtml(cs.challenge)}</Text>
+          <HtmlContent html={cs.challenge} />
         </View>
       )}
 
       {cs.solution && (
         <View style={{ marginTop: 24 }}>
           <Text style={styles.sectionLabel}>What we did</Text>
-          <Text style={styles.body}>{stripHtml(cs.solution)}</Text>
+          <HtmlContent html={cs.solution} />
         </View>
       )}
     </ScrollView>
@@ -100,5 +97,4 @@ const createStyles = (colors: ThemeColors) =>
     metricValue: { color: colors.accent, fontSize: 22, fontWeight: '700' },
     metricLabel: { color: colors.faint, fontSize: 11, marginTop: 4 },
     sectionLabel: { color: colors.accent, fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 10 },
-    body: { color: colors.fg, fontSize: 14.5, lineHeight: 21, opacity: 0.9 },
   });

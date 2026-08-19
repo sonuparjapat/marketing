@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import apiClient from '@/lib/apiClient';
 import { useToast } from '@/components/Toast';
+import { useAdminAuth } from '@/context/AdminAuthContext';
 
 const FIELDS: { key: string; label: string; group: string; type?: 'text' | 'color' | 'string-array' }[] = [
   { key: 'agency_name', label: 'Agency name', group: 'General' },
@@ -54,6 +55,8 @@ export default function AdminSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const { show } = useToast();
+  const { hasPermission } = useAdminAuth();
+  const canUpdate = hasPermission('settings.update');
 
   useEffect(() => {
     (async () => {
@@ -149,13 +152,17 @@ export default function AdminSettingsPage() {
         </div>
       ))}
       <div className="flex items-center gap-4">
-        <button
-          onClick={onSave}
-          disabled={saving}
-          className="bg-accent px-6 py-3 text-sm font-bold text-bg hover:opacity-90 disabled:opacity-60"
-        >
-          {saving ? 'Saving…' : 'Save settings'}
-        </button>
+        {canUpdate ? (
+          <button
+            onClick={onSave}
+            disabled={saving}
+            className="bg-accent px-6 py-3 text-sm font-bold text-bg hover:opacity-90 disabled:opacity-60"
+          >
+            {saving ? 'Saving…' : 'Save settings'}
+          </button>
+        ) : (
+          <span className="text-sm text-faint">You don&apos;t have permission to change settings.</span>
+        )}
         {saved && <span className="text-sm text-accent">Saved — refresh the site to see it live.</span>}
       </div>
     </div>

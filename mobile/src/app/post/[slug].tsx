@@ -4,12 +4,9 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, spacing, type ThemeColors } from '../../context/theme';
 import { getPost, PostDetail } from '../../api/services';
+import { HtmlContent } from '../../components/HtmlContent';
 
 const SITE_URL = process.env.EXPO_PUBLIC_SITE_URL || 'http://localhost:3000';
-
-function stripHtml(html: string) {
-  return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-}
 
 export default function PostDetailScreen() {
   const colors = useTheme();
@@ -75,7 +72,7 @@ export default function PostDetailScreen() {
 
       {post.cover_image && <Image source={{ uri: post.cover_image }} style={styles.cover} accessibilityLabel={post.cover_image_alt || post.title} />}
 
-      <Text style={styles.body}>{stripHtml(post.content)}</Text>
+      <HtmlContent html={post.content} />
 
       {post.related?.length > 0 && (
         <View style={styles.relatedSection}>
@@ -107,7 +104,6 @@ const createStyles = (colors: ThemeColors) =>
     meta: { color: colors.fg, fontSize: 13, fontWeight: '600' },
     metaSub: { color: colors.faint, fontSize: 11, marginTop: 2 },
     cover: { width: '100%', aspectRatio: 16 / 9, borderRadius: 8, marginBottom: 20, backgroundColor: colors.bg2 },
-    body: { color: colors.fg, fontSize: 15, lineHeight: 23, opacity: 0.9 },
     relatedSection: { marginTop: 32, paddingTop: 20, borderTopWidth: 1, borderTopColor: colors.line },
     relatedTitle: { color: colors.accent, fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 14 },
     relatedRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },

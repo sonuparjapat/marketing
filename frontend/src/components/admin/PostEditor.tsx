@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import apiClient from '@/lib/apiClient';
 import { useToast } from '@/components/Toast';
+import { useAdminAuth } from '@/context/AdminAuthContext';
 import { RichTextEditor } from './RichTextEditor';
 import { ImageUploadField } from './ImageUploadField';
 import { TagsInput } from './TagsInput';
@@ -57,6 +58,8 @@ function slugify(text: string) {
 export function PostEditor({ postId }: { postId?: number }) {
   const router = useRouter();
   const { show } = useToast();
+  const { hasPermission } = useAdminAuth();
+  const canSave = hasPermission(postId ? 'posts.update' : 'posts.create');
   const [post, setPost] = useState<Omit<Post, 'id'>>(EMPTY);
   const [slugTouched, setSlugTouched] = useState(false);
   const [loading, setLoading] = useState(Boolean(postId));
@@ -145,20 +148,24 @@ export function PostEditor({ postId }: { postId?: number }) {
           >
             {post.is_published ? 'Published' : 'Draft'}
           </span>
-          <button
-            onClick={() => save()}
-            disabled={saving}
-            className="border border-line px-4 py-2 text-sm hover:border-accent hover:text-accent disabled:opacity-60"
-          >
-            Save draft
-          </button>
-          <button
-            onClick={() => save(!post.is_published)}
-            disabled={saving}
-            className="bg-accent px-5 py-2 text-sm font-bold text-bg hover:opacity-90 disabled:opacity-60"
-          >
-            {saving ? 'Saving…' : post.is_published ? 'Unpublish' : 'Publish'}
-          </button>
+          {canSave && (
+            <>
+              <button
+                onClick={() => save()}
+                disabled={saving}
+                className="border border-line px-4 py-2 text-sm hover:border-accent hover:text-accent disabled:opacity-60"
+              >
+                Save draft
+              </button>
+              <button
+                onClick={() => save(!post.is_published)}
+                disabled={saving}
+                className="bg-accent px-5 py-2 text-sm font-bold text-bg hover:opacity-90 disabled:opacity-60"
+              >
+                {saving ? 'Saving…' : post.is_published ? 'Unpublish' : 'Publish'}
+              </button>
+            </>
+          )}
         </div>
       </div>
 

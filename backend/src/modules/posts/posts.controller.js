@@ -62,6 +62,36 @@ const allowedFields = [
 ];
 const adminCrud = buildAdminCrud('posts', { allowedFields, defaultOrder: 'created_at DESC' });
 
+// Custom admin list (rather than the generic buildAdminCrud list) — supports title search and
+// category filtering server-side, since the admin post list's search/category UI filters across
+// all posts, not just the current page.
+const adminListPosts = asyncHandler(async (req, res) => {
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
+  const offset = (page - 1) * limit;
+
+  const conditions = [];
+  const params = [];
+  if (req.query.category) {
+    params.push(req.query.category);
+    conditions.push(`category = $${params.length}`);
+  }
+  if (req.query.search) {
+    params.push(`%${req.query.search}%`);
+    conditions.push(`title ILIKE $${params.length}`);
+  }
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
+  const totalResult = await pool.query(`SELECT COUNT(*)::int AS count FROM posts ${where}`, params);
+  const dataResult = await pool.query(
+    `SELECT id, title, slug, cover_image, category, views, is_published, updated_at
+     FROM posts ${where} ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+    [...params, limit, offset]
+  );
+
+  ok(res, { items: dataResult.rows, page, limit, total: totalResult.rows[0].count });
+});
+
 const createPost = asyncHandler(async (req, res, next) => {
   if (!req.body.slug && req.body.title) req.body.slug = slugify(req.body.title);
   return adminCrud.create(req, res, next);
@@ -75,7 +105,7 @@ const updatePost = asyncHandler(async (req, res, next) => {
 module.exports = {
   listPosts,
   getPost,
-  adminList: adminCrud.list,
+  adminList: adminListPosts,
   adminGetOne: adminCrud.getOne,
   createPost,
   updatePost,

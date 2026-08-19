@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import apiClient from '@/lib/apiClient';
 import { useToast } from '@/components/Toast';
+import { useAdminAuth } from '@/context/AdminAuthContext';
 import { Skeleton } from '@/components/Skeleton';
 
 type SectionRow = { id: number; section_key: string; is_enabled: boolean; sort_order: number };
@@ -20,6 +21,8 @@ const LABELS: Record<string, string> = {
 };
 
 export default function AdminHomepageSectionsPage() {
+  const { hasPermission } = useAdminAuth();
+  const canUpdate = hasPermission('homepage_sections.update');
   const [sections, setSections] = useState<SectionRow[]>([]);
   const [loading, setLoading] = useState(true);
   const { show } = useToast();
@@ -64,7 +67,8 @@ export default function AdminHomepageSectionsPage() {
               <span className="text-[15px]">{LABELS[s.section_key] || s.section_key}</span>
               <button
                 onClick={() => toggle(s)}
-                className={`h-6 w-11 rounded-full transition-colors ${s.is_enabled ? 'bg-accent' : 'bg-line'}`}
+                disabled={!canUpdate}
+                className={`h-6 w-11 rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${s.is_enabled ? 'bg-accent' : 'bg-line'}`}
                 aria-pressed={s.is_enabled}
               >
                 <span

@@ -1,8 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import type { NavLink } from '@/lib/api';
+import { ArrowRightIcon } from '@/components/icons';
 
 const FALLBACK_NAV: Pick<NavLink, 'href' | 'label'>[] = [
   { href: '/services', label: 'Services' },
@@ -20,32 +23,62 @@ export function Header({
   navLinks?: Pick<NavLink, 'href' | 'label'>[];
 }) {
   const [open, setOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const pathname = usePathname();
   const nav = navLinks && navLinks.length > 0 ? navLinks : FALLBACK_NAV;
 
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+
+  const isActive = (href: string) => pathname === href || (href !== '/' && pathname?.startsWith(href));
+
   return (
-    <header className="sticky top-0 z-50 border-b border-line bg-bg/85 backdrop-blur-md">
-      <div className="mx-auto flex max-w-[1312px] items-center justify-between px-6 py-5 md:px-16">
-        <Link href="/" className="font-serif-italic text-2xl">
-          {agencyName}
+    <header
+      className={`sticky top-0 z-50 border-b transition-colors duration-300 ${
+        scrolled ? 'border-line bg-bg/90 backdrop-blur-md' : 'border-transparent bg-bg/40 backdrop-blur-sm'
+      }`}
+    >
+      <div className={`mx-auto flex max-w-[1312px] items-center justify-between px-6 transition-[padding] duration-300 md:px-16 ${scrolled ? 'py-4' : 'py-5'}`}>
+        <Link href="/" className="group flex items-center gap-2">
+          <span className="h-1.5 w-1.5 rounded-full bg-accent transition-transform group-hover:scale-125" />
+          <span className="font-serif-italic text-2xl">{agencyName}</span>
         </Link>
 
-        <nav className="hidden items-center gap-10 md:flex">
-          {nav.map((item) => (
-            <Link key={item.href} href={item.href} className="text-sm text-muted transition-colors hover:text-fg">
-              {item.label}
-            </Link>
-          ))}
+        <nav className="hidden items-center gap-9 md:flex">
+          {nav.map((item) => {
+            const active = isActive(item.href);
+            return (
+              <Link key={item.href} href={item.href} className="group relative py-1 text-sm text-muted transition-colors hover:text-fg">
+                <span className={active ? 'text-fg' : ''}>{item.label}</span>
+                <span
+                  className={`absolute -bottom-0.5 left-0 h-px bg-accent transition-all duration-300 ${
+                    active ? 'w-full' : 'w-0 group-hover:w-full'
+                  }`}
+                />
+              </Link>
+            );
+          })}
         </nav>
 
         <div className="flex items-center gap-4">
           <Link
             href="/contact"
-            className="hidden rounded-sm bg-accent px-6 py-2.5 text-sm font-bold text-bg transition-opacity hover:opacity-90 md:inline-block"
+            className="group hidden items-center gap-2 rounded-sm bg-accent px-6 py-2.5 text-sm font-bold text-bg transition-all hover:-translate-y-0.5 hover:opacity-90 hover:shadow-[0_8px_24px_-8px_var(--accent)] md:inline-flex"
           >
             Get Free Audit
+            <ArrowRightIcon size={14} className="transition-transform group-hover:translate-x-1" />
           </Link>
           <button
             aria-label="Toggle menu"
+            aria-expanded={open}
             className="flex h-9 w-9 flex-col items-center justify-center gap-1.5 md:hidden"
             onClick={() => setOpen((v) => !v)}
           >
@@ -56,23 +89,38 @@ export function Header({
         </div>
       </div>
 
-      {open && (
-        <nav className="flex flex-col gap-1 border-t border-line px-6 pb-6 md:hidden">
-          {nav.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="py-3 text-sm text-muted"
-              onClick={() => setOpen(false)}
-            >
-              {item.label}
-            </Link>
-          ))}
-          <Link href="/contact" className="mt-2 rounded-sm bg-accent px-6 py-3 text-center text-sm font-bold text-bg">
-            Get Free Audit
-          </Link>
-        </nav>
-      )}
+      <AnimatePresence>
+        {open && (
+          <motion.nav
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            className="overflow-hidden border-t border-line md:hidden"
+          >
+            <div className="flex flex-col gap-1 px-6 pb-6 pt-2">
+              {nav.map((item, i) => (
+                <motion.div
+                  key={item.href}
+                  initial={{ opacity: 0, x: -12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.25, delay: i * 0.04 }}
+                >
+                  <Link
+                    href={item.href}
+                    className={`block py-3 text-sm ${isActive(item.href) ? 'text-accent' : 'text-muted'}`}
+                  >
+                    {item.label}
+                  </Link>
+                </motion.div>
+              ))}
+              <Link href="/contact" className="mt-3 rounded-sm bg-accent px-6 py-3 text-center text-sm font-bold text-bg">
+                Get Free Audit
+              </Link>
+            </div>
+          </motion.nav>
+        )}
+      </AnimatePresence>
     </header>
   );
 }

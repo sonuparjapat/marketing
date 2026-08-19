@@ -2,6 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import apiClient from '@/lib/apiClient';
+import { useAdminAuth } from '@/context/AdminAuthContext';
+import { Pagination } from '@/components/ui/Pagination';
+
+const PAGE_SIZE = 20;
 
 type Callback = {
   id: number;
@@ -13,22 +17,28 @@ type Callback = {
 };
 
 export default function AdminCallbacksPage() {
+  const { hasPermission } = useAdminAuth();
+  const canUpdate = hasPermission('callbacks.update');
   const [items, setItems] = useState<Callback[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  const load = async () => {
+  const load = async (targetPage: number) => {
     setLoading(true);
     try {
-      const res = await apiClient.get('/admin/callbacks', { params: { limit: 100 } });
+      const res = await apiClient.get('/admin/callbacks', { params: { page: targetPage, limit: PAGE_SIZE } });
       setItems(res.data.data.items);
+      setTotal(res.data.data.total ?? res.data.data.items.length);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    load();
-  }, []);
+    load(page);
+  }, [page]);
 
   const toggleStatus = async (cb: Callback) => {
     const next = cb.status === 'called' ? 'pending' : 'called';
@@ -48,7 +58,7 @@ export default function AdminCallbacksPage() {
               <th className="px-4 py-3">Preferred time</th>
               <th className="px-4 py-3">Requested</th>
               <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3" />
+              {canUpdate && <th className="px-4 py-3" />}
             </tr>
           </thead>
           <tbody>
@@ -61,16 +71,18 @@ export default function AdminCallbacksPage() {
                 <td className="px-4 py-3">
                   <span className={cb.status === 'called' ? 'text-accent' : 'text-muted'}>{cb.status}</span>
                 </td>
-                <td className="px-4 py-3 text-right">
-                  <button onClick={() => toggleStatus(cb)} className="text-accent hover:opacity-80">
-                    Mark as {cb.status === 'called' ? 'pending' : 'called'}
-                  </button>
-                </td>
+                {canUpdate && (
+                  <td className="px-4 py-3 text-right">
+                    <button onClick={() => toggleStatus(cb)} className="text-accent hover:opacity-80">
+                      Mark as {cb.status === 'called' ? 'pending' : 'called'}
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
             {!loading && !items.length && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-faint">
+                <td colSpan={canUpdate ? 6 : 5} className="px-4 py-8 text-center text-faint">
                   No callback requests yet.
                 </td>
               </tr>
@@ -78,6 +90,7 @@ export default function AdminCallbacksPage() {
           </tbody>
         </table>
       </div>
+      <Pagination page={page} totalPages={totalPages} total={total} onChange={setPage} />
     </div>
   );
 }

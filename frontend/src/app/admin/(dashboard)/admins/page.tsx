@@ -36,8 +36,10 @@ export default function AdminAdminsPage() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<AdminRow | null>(null);
+  const [resetting, setResetting] = useState<AdminRow | null>(null);
   const [createForm, setCreateForm] = useState({ name: '', email: '', password: '', role: 'editor', department_id: '' });
   const [editForm, setEditForm] = useState({ name: '', role: 'editor', department_id: '', is_active: true });
+  const [newPassword, setNewPassword] = useState('');
   const [saving, setSaving] = useState(false);
   const { show } = useToast();
   const { admin: me } = useAdminAuth();
@@ -115,6 +117,29 @@ export default function AdminAdminsPage() {
     }
   };
 
+  const openReset = (admin: AdminRow) => {
+    setNewPassword('');
+    setResetting(admin);
+  };
+
+  const onResetPassword = async () => {
+    if (!resetting) return;
+    if (newPassword.length < 8) {
+      show('Password must be at least 8 characters.', 'error');
+      return;
+    }
+    setSaving(true);
+    try {
+      await apiClient.patch(`/admin/admins/${resetting.id}/password`, { password: newPassword });
+      show(`Password reset for ${resetting.name}.`);
+      setResetting(null);
+    } catch (err) {
+      show(errMessage(err, 'Something went wrong.'), 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
@@ -151,9 +176,12 @@ export default function AdminAdminsPage() {
                   <td className="px-4 py-3">
                     <span className={a.is_active ? 'text-accent' : 'text-faint'}>{a.is_active ? 'Active' : 'Deactivated'}</span>
                   </td>
-                  <td className="px-4 py-3 text-right">
-                    <button onClick={() => openEdit(a)} className="text-accent hover:opacity-80">
+                  <td className="whitespace-nowrap px-4 py-3 text-right">
+                    <button onClick={() => openEdit(a)} className="mr-4 text-accent hover:opacity-80">
                       Edit
+                    </button>
+                    <button onClick={() => openReset(a)} className="text-muted hover:text-accent">
+                      Reset password
                     </button>
                   </td>
                 </tr>
@@ -260,6 +288,30 @@ export default function AdminAdminsPage() {
             </label>
           )}
         </div>
+      </Modal>
+
+      <Modal
+        open={resetting !== null}
+        onClose={() => setResetting(null)}
+        title={`Reset password for ${resetting?.name}`}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setResetting(null)}>
+              Cancel
+            </Button>
+            <Button onClick={onResetPassword} loading={saving}>
+              Reset password
+            </Button>
+          </>
+        }
+      >
+        <Input
+          label="New password (min 8 characters)"
+          type="password"
+          value={newPassword}
+          onChange={(e) => setNewPassword(e.target.value)}
+        />
+        <p className="mt-3 text-xs text-faint">They&apos;ll need to sign in again with this new password — their current session isn&apos;t affected until then.</p>
       </Modal>
     </div>
   );

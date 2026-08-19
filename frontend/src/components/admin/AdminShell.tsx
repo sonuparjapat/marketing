@@ -7,6 +7,7 @@ import { useAdminAuth } from '@/context/AdminAuthContext';
 import { useAdminSocket } from '@/lib/useAdminSocket';
 import { useToast } from '@/components/Toast';
 import { PageLoader } from '@/components/ui/Spinner';
+import { ChangePasswordModal } from '@/components/admin/ChangePasswordModal';
 
 type NavItem = { href: string; label: string; permission?: string };
 
@@ -71,6 +72,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { admin, loading, isSuperAdmin, hasPermission, logout } = useAdminAuth();
   const [inboxBadge, setInboxBadge] = useState(0);
+  const [changingPassword, setChangingPassword] = useState(false);
   const { show } = useToast();
 
   useAdminSocket({
@@ -150,12 +152,18 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             Signed in as {admin?.name || admin?.email}
             {admin?.department_name && <span className="text-faint"> · {admin.department_name}</span>}
           </span>
-          <button onClick={logout} className="text-sm text-muted hover:text-accent">
-            Log out
-          </button>
+          <div className="flex items-center gap-5">
+            <button onClick={() => setChangingPassword(true)} className="text-sm text-muted hover:text-accent">
+              Change password
+            </button>
+            <button onClick={logout} className="text-sm text-muted hover:text-accent">
+              Log out
+            </button>
+          </div>
         </header>
         <main className="p-8">{children}</main>
       </div>
+      <ChangePasswordModal open={changingPassword} onClose={() => setChangingPassword(false)} />
     </div>
   );
 }
