@@ -47,6 +47,14 @@ const NAV_GROUPS: { label: string; items: { href: string; label: string }[] }[] 
     ],
   },
   {
+    label: 'Docs',
+    items: [
+      { href: '/admin/docs/user-manual', label: 'User Manual' },
+      { href: '/admin/docs/testing', label: 'Testing Guide' },
+      { href: '/admin/docs/developer', label: 'Developer Docs' },
+    ],
+  },
+  {
     label: '',
     items: [
       { href: '/admin/media', label: 'Media Library' },

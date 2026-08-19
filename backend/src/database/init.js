@@ -283,7 +283,7 @@ async function initDB() {
     await client.query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;`);
 
     await client.query('COMMIT');
-    console.log('Database schema is up to date (19 tables verified/created).');
+    console.log('Database schema is up to date (20 tables verified/created).');
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;
