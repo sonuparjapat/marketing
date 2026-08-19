@@ -18,6 +18,8 @@ type CustomerAuthValue = {
   login: (email: string, password: string) => Promise<AuthResult>;
   register: (name: string, email: string, password: string) => Promise<AuthResult>;
   logout: () => void;
+  forgotPassword: (email: string) => Promise<AuthResult>;
+  resetPassword: (token: string, password: string) => Promise<AuthResult>;
 };
 
 const CustomerAuthContext = createContext<CustomerAuthValue | null>(null);
@@ -85,9 +87,27 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
     customerApiClient.post('/auth/logout').catch(() => {});
   }, []);
 
+  const forgotPassword = useCallback(async (email: string): Promise<AuthResult> => {
+    try {
+      await customerApiClient.post('/auth/forgot-password', { email });
+      return { success: true };
+    } catch (err) {
+      return { success: false, message: errMessage(err, 'Something went wrong.') };
+    }
+  }, []);
+
+  const resetPassword = useCallback(async (token: string, password: string): Promise<AuthResult> => {
+    try {
+      await customerApiClient.post('/auth/reset-password', { token, password });
+      return { success: true };
+    } catch (err) {
+      return { success: false, message: errMessage(err, 'Something went wrong.') };
+    }
+  }, []);
+
   const value = useMemo(
-    () => ({ customer, loading, login, register, logout }),
-    [customer, loading, login, register, logout]
+    () => ({ customer, loading, login, register, logout, forgotPassword, resetPassword }),
+    [customer, loading, login, register, logout, forgotPassword, resetPassword]
   );
 
   return <CustomerAuthContext.Provider value={value}>{children}</CustomerAuthContext.Provider>;

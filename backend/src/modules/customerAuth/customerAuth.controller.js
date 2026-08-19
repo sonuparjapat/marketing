@@ -1,9 +1,12 @@
+const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const validator = require('validator');
 const pool = require('../../config/db');
 const asyncHandler = require('../../utils/asyncHandler');
 const { ok, fail } = require('../../utils/response');
+const { sendMail } = require('../../config/mailer');
+const { customerPasswordReset } = require('../../utils/emailTemplates');
 
 const COOKIE_OPTS = {
   httpOnly: true,
@@ -78,4 +81,50 @@ const me = asyncHandler(async (req, res) => {
   ok(res, profileOf(customer));
 });
 
-module.exports = { register, login, logout, me };
+// Always responds the same way whether or not the email exists, so the endpoint can't be used to
+// enumerate registered accounts.
+const forgotPassword = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  if (!email || !validator.isEmail(email)) return fail(res, 'Please provide a valid email', 400);
+
+  const result = await pool.query('SELECT id, name, email FROM customers WHERE email = $1', [email.trim().toLowerCase()]);
+  const customer = result.rows[0];
+
+  if (customer) {
+    const token = crypto.randomBytes(32).toString('hex');
+    const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    await pool.query('UPDATE customers SET password_reset_token = $1, password_reset_expires = $2 WHERE id = $3', [
+      token,
+      expires,
+      customer.id,
+    ]);
+    const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${token}`;
+    sendMail({ to: customer.email, subject: 'Reset your password', html: customerPasswordReset(customer.name, resetUrl) }).catch(
+      (e) => console.error('[mailer] password reset email failed:', e.message)
+    );
+  }
+
+  ok(res, { message: 'If an account exists for that email, a reset link has been sent.' });
+});
+
+const resetPassword = asyncHandler(async (req, res) => {
+  const { token, password } = req.body;
+  if (!token || !password) return fail(res, 'Token and new password are required', 400);
+  if (password.length < 8) return fail(res, 'Password must be at least 8 characters', 400);
+
+  const result = await pool.query(
+    'SELECT id FROM customers WHERE password_reset_token = $1 AND password_reset_expires > NOW()',
+    [token]
+  );
+  const customer = result.rows[0];
+  if (!customer) return fail(res, 'This reset link is invalid or has expired', 400);
+
+  const hash = await bcrypt.hash(password, 12);
+  await pool.query(
+    'UPDATE customers SET password_hash = $1, password_reset_token = NULL, password_reset_expires = NULL WHERE id = $2',
+    [hash, customer.id]
+  );
+  ok(res, { message: 'Password updated — you can now sign in.' });
+});
+
+module.exports = { register, login, logout, me, forgotPassword, resetPassword };

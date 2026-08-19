@@ -8,5 +8,7 @@ publicRouter.post('/register', customerAuthLimiter, ctrl.register);
 publicRouter.post('/login', customerAuthLimiter, ctrl.login);
 publicRouter.post('/logout', ctrl.logout);
 publicRouter.get('/me', customerAuth, ctrl.me);
+publicRouter.post('/forgot-password', customerAuthLimiter, ctrl.forgotPassword);
+publicRouter.post('/reset-password', customerAuthLimiter, ctrl.resetPassword);
 
 module.exports = { publicRouter };

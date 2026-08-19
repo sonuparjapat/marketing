@@ -7,7 +7,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import type { NavLink } from '@/lib/api';
 import { ArrowRightIcon, UserIcon } from '@/components/icons';
 import { useCustomerAuth } from '@/context/CustomerAuthContext';
-import { AuthModal } from '@/components/AuthModal';
+import { AuthDrawer } from '@/components/AuthDrawer';
 
 const FALLBACK_NAV: Pick<NavLink, 'href' | 'label'>[] = [
   { href: '/services', label: 'Services' },
@@ -45,6 +45,7 @@ export function Header({
   const isActive = (href: string) => pathname === href || (href !== '/' && pathname?.startsWith(href));
 
   return (
+    <>
     <header
       className={`sticky top-0 z-50 border-b transition-colors duration-300 ${
         scrolled ? 'border-line bg-bg/90 backdrop-blur-md' : 'border-transparent bg-bg/40 backdrop-blur-sm'
@@ -159,7 +160,8 @@ export function Header({
         )}
       </AnimatePresence>
 
-      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
     </header>
+    <AuthDrawer open={authOpen} onClose={() => setAuthOpen(false)} />
+    </>
   );
 }

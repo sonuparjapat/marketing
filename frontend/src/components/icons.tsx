@@ -128,6 +128,33 @@ export function YoutubeIcon({ className, size }: IconProps) {
   );
 }
 
+export function MailIcon({ className, size }: IconProps) {
+  return (
+    <svg {...base(size)} className={className}>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="M3 7l9 6 9-6" />
+    </svg>
+  );
+}
+
+export function LockIcon({ className, size }: IconProps) {
+  return (
+    <svg {...base(size)} className={className}>
+      <rect x="4" y="11" width="16" height="9" rx="2" />
+      <path d="M8 11V8a4 4 0 018 0v3" />
+    </svg>
+  );
+}
+
+export function ShieldCheckIcon({ className, size }: IconProps) {
+  return (
+    <svg {...base(size)} className={className}>
+      <path d="M12 3l7 3.5v5c0 4.6-3 8.2-7 9.5-4-1.3-7-4.9-7-9.5v-5z" />
+      <path d="M9 12l2 2 4-4" />
+    </svg>
+  );
+}
+
 export function UserIcon({ className, size }: IconProps) {
   return (
     <svg {...base(size)} className={className}>

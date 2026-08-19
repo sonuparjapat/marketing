@@ -288,6 +288,9 @@ async function initDB() {
       );
     `);
 
+    await client.query(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS password_reset_token VARCHAR(128);`);
+    await client.query(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS password_reset_expires TIMESTAMP;`);
+
     await client.query(`ALTER TABLE admins ALTER COLUMN role SET DEFAULT 'editor';`);
     await client.query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;`);
 

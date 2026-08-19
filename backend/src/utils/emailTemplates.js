@@ -46,10 +46,19 @@ const subscriberWelcome = () =>
     `<p>Thanks for joining our newsletter. Expect practical, no-fluff notes on D2C growth, performance marketing and SEO — a couple of times a month, never spam.</p>`
   );
 
+const customerPasswordReset = (name, resetUrl) =>
+  wrapper(
+    `Reset your password, ${name}`,
+    `<p>We received a request to reset your account password. This link expires in 1 hour.</p>
+     <p style="margin:24px 0;"><a href="${resetUrl}" style="background:#d4af6a;color:#14171f;padding:12px 22px;border-radius:4px;text-decoration:none;font-weight:bold;">Reset password</a></p>
+     <p style="font-size:13px;color:#888;">If you didn't request this, you can safely ignore this email — your password won't change.</p>`
+  );
+
 module.exports = {
   leadAutoReply,
   leadAdminAlert,
   callbackConfirmation,
   callbackAdminAlert,
   subscriberWelcome,
+  customerPasswordReset,
 };
