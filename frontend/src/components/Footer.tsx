@@ -24,10 +24,14 @@ export async function Footer({
   const services = await getServices();
 
   return (
-    <footer className="px-6 pb-8 pt-20 md:px-16">
-      <div className="mx-auto grid max-w-[1312px] grid-cols-1 gap-12 border-b border-line pb-16 md:grid-cols-[1.4fr_1fr_1fr_1.2fr]">
+    <footer className="relative overflow-hidden px-6 pb-8 pt-20 md:px-16">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-accent/40 to-transparent" />
+      <div className="mx-auto grid max-w-[1312px] grid-cols-1 gap-12 border-b border-line-soft pb-16 md:grid-cols-[1.4fr_1fr_1fr_1.2fr]">
         <div>
-          <div className="font-serif-italic mb-4 text-2xl">{agencyName}</div>
+          <div className="mb-4 flex items-center gap-2.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-accent" />
+            <span className="font-serif-italic text-2xl">{agencyName}</span>
+          </div>
           <p className="mb-6 max-w-[280px] text-sm leading-relaxed text-muted">
             {settings.tagline || "A performance marketing agency for D2C & SME brands in India."}
           </p>
@@ -62,24 +66,36 @@ export async function Footer({
           <div className="mb-5 text-xs uppercase tracking-wider text-faint">Get in touch</div>
           <div className="mb-2 text-sm text-muted">{settings.email || 'hello@anvil.agency'}</div>
           <div className="mb-5 text-sm text-muted">{settings.phone || '+91 98XXX XXXXX'}</div>
-          <div className="flex gap-3.5">
+          <div className="flex gap-3">
             {settings.instagram_url && (
-              <a href={settings.instagram_url} className="flex h-9 w-9 items-center justify-center rounded-full border border-line text-muted">
+              <a
+                href={settings.instagram_url}
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-line-soft text-muted transition-all hover:-translate-y-0.5 hover:border-accent hover:text-accent"
+              >
                 <InstagramIcon size={16} />
               </a>
             )}
             {settings.linkedin_url && (
-              <a href={settings.linkedin_url} className="flex h-9 w-9 items-center justify-center rounded-full border border-line text-muted">
+              <a
+                href={settings.linkedin_url}
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-line-soft text-muted transition-all hover:-translate-y-0.5 hover:border-accent hover:text-accent"
+              >
                 <LinkedinIcon size={16} />
               </a>
             )}
             {settings.youtube_url && (
-              <a href={settings.youtube_url} className="flex h-9 w-9 items-center justify-center rounded-full border border-line text-muted">
+              <a
+                href={settings.youtube_url}
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-line-soft text-muted transition-all hover:-translate-y-0.5 hover:border-accent hover:text-accent"
+              >
                 <YoutubeIcon size={16} />
               </a>
             )}
             {settings.twitter_url && (
-              <a href={settings.twitter_url} className="flex h-9 w-9 items-center justify-center rounded-full border border-line text-muted">
+              <a
+                href={settings.twitter_url}
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-line-soft text-muted transition-all hover:-translate-y-0.5 hover:border-accent hover:text-accent"
+              >
                 <TwitterIcon size={16} />
               </a>
             )}

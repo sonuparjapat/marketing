@@ -63,7 +63,7 @@ export default async function BlogPage({
               name="q"
               defaultValue={q}
               placeholder="Search posts…"
-              className="w-full border border-line bg-bg2 px-4 py-3 text-sm placeholder:text-faint focus:border-accent focus:outline-none"
+              className="w-full rounded-lg border border-line-soft bg-bg2 px-4 py-3 text-sm placeholder:text-faint focus:border-accent focus:outline-none"
             />
           </form>
         </div>
@@ -72,7 +72,7 @@ export default async function BlogPage({
           <div className="mb-14 flex flex-wrap gap-2">
             <Link
               href="/blog"
-              className={`px-4 py-2 text-xs uppercase tracking-wide ${!category ? 'bg-accent text-bg' : 'border border-line text-muted hover:border-accent hover:text-accent'}`}
+              className={`rounded-full px-4 py-2 text-xs uppercase tracking-wide transition-all ${!category ? 'bg-accent text-bg' : 'border border-line-soft text-muted hover:-translate-y-0.5 hover:border-accent hover:text-accent'}`}
             >
               All
             </Link>
@@ -80,7 +80,7 @@ export default async function BlogPage({
               <Link
                 key={c.id}
                 href={`/blog?category=${encodeURIComponent(c.name)}`}
-                className={`px-4 py-2 text-xs uppercase tracking-wide ${category === c.name ? 'bg-accent text-bg' : 'border border-line text-muted hover:border-accent hover:text-accent'}`}
+                className={`rounded-full px-4 py-2 text-xs uppercase tracking-wide transition-all ${category === c.name ? 'bg-accent text-bg' : 'border border-line-soft text-muted hover:-translate-y-0.5 hover:border-accent hover:text-accent'}`}
               >
                 {c.name}
               </Link>
@@ -89,9 +89,9 @@ export default async function BlogPage({
         )}
 
         {featured && (
-          <Link href={`/blog/${featured.slug}`} className="group mb-14 grid gap-8 border border-line md:grid-cols-2">
+          <Link href={`/blog/${featured.slug}`} className="group glass mb-14 grid gap-8 overflow-hidden rounded-2xl transition-all duration-300 hover:-translate-y-1 hover:border-accent/35 md:grid-cols-2">
             <div className="relative aspect-[16/10] overflow-hidden bg-bg2">
-              {featured.cover_image && (
+              {featured.cover_image ? (
                 <Image
                   src={featured.cover_image}
                   alt={featured.cover_image_alt || featured.title}
@@ -99,6 +99,18 @@ export default async function BlogPage({
                   className="object-cover transition-transform duration-500 group-hover:scale-105"
                   sizes="600px"
                 />
+              ) : (
+                <div
+                  className="absolute inset-0 transition-transform duration-500 group-hover:scale-105"
+                  style={{
+                    background:
+                      'radial-gradient(120% 100% at 15% 10%, oklch(0.42 0.09 85 / 0.9), transparent 60%), radial-gradient(90% 80% at 90% 90%, oklch(0.55 0.11 300 / 0.5), transparent 60%), linear-gradient(150deg, oklch(0.22 0.04 85), oklch(0.16 0.028 265))',
+                  }}
+                >
+                  <svg className="blog-chart" viewBox="0 0 200 90" preserveAspectRatio="none">
+                    <path d="M0,55 L28,48 L56,50 L84,32 L112,38 L140,20 L168,26 L200,10" fill="none" stroke="oklch(1 0 0 / 0.5)" strokeWidth={2} />
+                  </svg>
+                </div>
               )}
             </div>
             <div className="flex flex-col justify-center p-8 md:p-10">
@@ -116,27 +128,46 @@ export default async function BlogPage({
           </Link>
         )}
 
-        <div className="grid gap-10 md:grid-cols-3">
+        <div className="grid gap-8 md:grid-cols-3">
           {rest
             .filter((post): post is NonNullable<typeof post> => Boolean(post))
-            .map((post) => (
-              <Link key={post.id} href={`/blog/${post.slug}`} className="group block">
-                <div className="relative mb-5 aspect-[4/3] overflow-hidden border border-line bg-bg2">
-                  {post.cover_image && (
-                    <Image
-                      src={post.cover_image}
-                      alt={post.cover_image_alt || post.title}
-                      fill
-                      className="object-cover transition-transform duration-500 group-hover:scale-105"
-                      sizes="360px"
-                    />
-                  )}
-                </div>
-                <span className="text-[11px] uppercase tracking-wider text-accent">{post.category}</span>
-                <h2 className="mt-2.5 text-[19px] font-semibold leading-snug group-hover:text-accent">{post.title}</h2>
-                <p className="mt-2 text-sm leading-relaxed text-muted">{post.excerpt}</p>
-              </Link>
-            ))}
+            .map((post, i) => {
+              const hue = (['85', '165', '25'] as const)[i % 3];
+              return (
+                <Link key={post.id} href={`/blog/${post.slug}`} className="group block">
+                  <div className="relative mb-5 aspect-[4/3] overflow-hidden rounded-xl border border-line-soft bg-bg2">
+                    {post.cover_image ? (
+                      <Image
+                        src={post.cover_image}
+                        alt={post.cover_image_alt || post.title}
+                        fill
+                        className="object-cover transition-transform duration-500 group-hover:scale-105"
+                        sizes="360px"
+                      />
+                    ) : (
+                      <div
+                        className="absolute inset-0 transition-transform duration-500 group-hover:scale-105"
+                        style={{
+                          background: `radial-gradient(120% 100% at 15% 10%, oklch(0.42 0.09 ${hue} / 0.9), transparent 60%), radial-gradient(90% 80% at 90% 90%, oklch(0.55 0.11 300 / 0.5), transparent 60%), linear-gradient(150deg, oklch(0.22 0.04 ${hue}), oklch(0.16 0.028 265))`,
+                        }}
+                      >
+                        <svg className="blog-chart" viewBox="0 0 200 90" preserveAspectRatio="none">
+                          <path
+                            d="M0,50 L28,52 L56,34 L84,38 L112,20 L140,26 L168,14 L200,18"
+                            fill="none"
+                            stroke="oklch(1 0 0 / 0.5)"
+                            strokeWidth={2}
+                          />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                  <span className="text-[11px] uppercase tracking-wider text-accent">{post.category}</span>
+                  <h2 className="mt-2.5 text-[19px] font-semibold leading-snug group-hover:text-accent">{post.title}</h2>
+                  <p className="mt-2 text-sm leading-relaxed text-muted">{post.excerpt}</p>
+                </Link>
+              );
+            })}
         </div>
 
         {!posts.length && (
@@ -150,7 +181,7 @@ export default async function BlogPage({
             <Link
               href={pageHref(Math.max(1, page - 1))}
               aria-disabled={page === 1}
-              className={`px-4 py-2 text-xs uppercase tracking-wide ${page === 1 ? 'pointer-events-none border border-line text-faint' : 'border border-line text-muted hover:border-accent hover:text-accent'}`}
+              className={`rounded-lg px-4 py-2 text-xs uppercase tracking-wide transition-all ${page === 1 ? 'pointer-events-none border border-line-soft text-faint' : 'border border-line-soft text-muted hover:-translate-y-0.5 hover:border-accent hover:text-accent'}`}
             >
               Previous
             </Link>
@@ -158,7 +189,7 @@ export default async function BlogPage({
               <Link
                 key={n}
                 href={pageHref(n)}
-                className={`h-9 w-9 flex items-center justify-center text-xs ${n === page ? 'bg-accent text-bg font-bold' : 'border border-line text-muted hover:border-accent hover:text-accent'}`}
+                className={`flex h-9 w-9 items-center justify-center rounded-lg text-xs transition-all ${n === page ? 'bg-accent font-bold text-bg' : 'border border-line-soft text-muted hover:-translate-y-0.5 hover:border-accent hover:text-accent'}`}
               >
                 {n}
               </Link>
@@ -166,7 +197,7 @@ export default async function BlogPage({
             <Link
               href={pageHref(Math.min(totalPages, page + 1))}
               aria-disabled={page === totalPages}
-              className={`px-4 py-2 text-xs uppercase tracking-wide ${page === totalPages ? 'pointer-events-none border border-line text-faint' : 'border border-line text-muted hover:border-accent hover:text-accent'}`}
+              className={`rounded-lg px-4 py-2 text-xs uppercase tracking-wide transition-all ${page === totalPages ? 'pointer-events-none border border-line-soft text-faint' : 'border border-line-soft text-muted hover:-translate-y-0.5 hover:border-accent hover:text-accent'}`}
             >
               Next
             </Link>

@@ -94,7 +94,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
         </div>
 
         {post.cover_image && (
-          <div className="relative mb-10 aspect-[16/9] overflow-hidden border border-line bg-bg2">
+          <div className="relative mb-10 aspect-[16/9] overflow-hidden rounded-2xl border border-line-soft bg-bg2">
             <Image src={post.cover_image} alt={post.cover_image_alt || post.title} fill className="object-cover" sizes="720px" priority />
           </div>
         )}
@@ -142,7 +142,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
         )}
 
         {post.author_bio && (
-          <div className="mt-12 flex gap-5 border border-line bg-bg2 p-6">
+          <div className="glass mt-12 flex gap-5 rounded-2xl p-6">
             {post.author_photo ? (
               <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full border border-line bg-bg">
                 <Image src={post.author_photo} alt="" fill className="object-cover" sizes="64px" />
@@ -172,7 +172,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
           <div className="grid gap-8 md:grid-cols-3">
             {post.related.map((r) => (
               <Link key={r.id} href={`/blog/${r.slug}`} className="group block">
-                <div className="relative mb-4 aspect-[4/3] overflow-hidden border border-line bg-bg2">
+                <div className="relative mb-4 aspect-[4/3] overflow-hidden rounded-xl border border-line-soft bg-bg2">
                   {r.cover_image && (
                     <Image
                       src={r.cover_image}

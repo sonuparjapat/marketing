@@ -67,7 +67,9 @@ export default async function ServiceDetailPage({ params }: { params: Promise<{ 
           &larr; All services
         </Link>
 
-        <Icon className="mb-6 text-accent" size={36} />
+        <div className="icon-badge gold mb-6 h-16! w-16!">
+          <Icon size={30} />
+        </div>
         <h1 className="mb-5 font-serif text-4xl font-normal leading-tight md:text-[48px]">{service.title}</h1>
         <p className="mb-12 max-w-2xl text-lg leading-relaxed text-muted">{service.short_description}</p>
 
@@ -82,7 +84,7 @@ export default async function ServiceDetailPage({ params }: { params: Promise<{ 
             <h2 className="mb-5 text-xs uppercase tracking-[0.2em] text-accent">What&apos;s included</h2>
             <div className="grid gap-3 md:grid-cols-2">
               {service.features_json.map((f) => (
-                <div key={f} className="flex items-start gap-3 border-t border-line py-3 text-[15px]">
+                <div key={f} className="flex items-start gap-3 rounded-lg border border-line-soft bg-bg2/50 px-4 py-3.5 text-[15px]">
                   <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-accent" />
                   {f}
                 </div>
@@ -96,12 +98,16 @@ export default async function ServiceDetailPage({ params }: { params: Promise<{ 
             <h2 className="mb-6 text-xs uppercase tracking-[0.2em] text-accent">Related case studies</h2>
             <div className="grid gap-6 md:grid-cols-2">
               {service.related_case_studies.map((cs) => (
-                <Link key={cs.id} href={`/work/${cs.slug}`} className="border border-line p-6 transition-colors hover:border-faint">
+                <Link
+                  key={cs.id}
+                  href={`/work/${cs.slug}`}
+                  className="glass rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1 hover:border-accent/35"
+                >
                   <h3 className="mb-4 text-lg font-semibold">{cs.title}</h3>
                   <div className="flex gap-6">
                     {cs.results_json.slice(0, 2).map((r) => (
                       <div key={r.metric}>
-                        <div className="font-serif-italic text-xl text-accent">{r.value}</div>
+                        <div className="font-serif-italic grad-text text-xl">{r.value}</div>
                         <div className="text-xs text-faint">{r.metric}</div>
                       </div>
                     ))}
@@ -121,9 +127,9 @@ export default async function ServiceDetailPage({ params }: { params: Promise<{ 
 
         <Link
           href="/contact"
-          className="inline-flex items-center gap-2.5 bg-accent px-8 py-4 text-sm font-bold text-bg transition-opacity hover:opacity-90"
+          className="group inline-flex items-center gap-2.5 bg-accent px-8 py-4 text-sm font-bold text-bg transition-all hover:-translate-y-1 hover:shadow-[0_20px_40px_-14px_var(--accent)]"
         >
-          Talk to us about {service.title} <ArrowRightIcon size={16} />
+          Talk to us about {service.title} <ArrowRightIcon size={16} className="transition-transform group-hover:translate-x-1" />
         </Link>
       </div>
     </main>

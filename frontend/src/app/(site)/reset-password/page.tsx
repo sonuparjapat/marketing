@@ -2,12 +2,11 @@
 
 import { Suspense, useState } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useCustomerAuth } from '@/context/CustomerAuthContext';
 import { LockIcon, EyeIcon, EyeOffIcon, ArrowRightIcon } from '@/components/icons';
 
 function ResetPasswordForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get('token') || '';
   const { resetPassword } = useCustomerAuth();
