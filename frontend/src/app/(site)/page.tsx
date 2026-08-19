@@ -231,7 +231,7 @@ export default async function HomePage() {
                       <span className="font-serif-italic absolute right-6 top-6 text-[13px] text-faint">
                         {String(i + 1).padStart(2, '0')}
                       </span>
-                      <div className={`icon-badge ${hue === 'gold' ? 'gold' : hue === 'emerald' ? 'emerald' : 'coral'}`}>
+                      <div className={`icon-badge ${hue}`}>
                         <Icon size={22} />
                       </div>
                       <h3 className="mb-2.5 mt-5 text-xl font-semibold transition-colors group-hover:text-accent">{service.title}</h3>
@@ -423,7 +423,9 @@ export default async function HomePage() {
               </h2>
             </MotionReveal>
             <MotionReveal delay={0.1}>
-              <TestimonialCarousel testimonials={testimonials} />
+              <div className="glass glass-border-grad mx-auto max-w-[860px] rounded-2xl p-10 md:p-14">
+                <TestimonialCarousel testimonials={testimonials} />
+              </div>
             </MotionReveal>
           </div>
         </section>
@@ -445,27 +447,46 @@ export default async function HomePage() {
               </Link>
             </MotionReveal>
             <div className="grid gap-10 md:grid-cols-3">
-              {posts.items.slice(0, 3).map((post, i) => (
-                <MotionReveal key={post.id} delay={i * 0.08}>
-                  <Link href={`/blog/${post.slug}`} className="group block">
-                    <div className="relative mb-5 aspect-[4/3] overflow-hidden border border-line bg-bg2">
-                      {post.cover_image && (
-                        <Image
-                          src={post.cover_image}
-                          alt={post.title}
-                          fill
-                          className="object-cover transition-transform duration-500 ease-out group-hover:scale-105"
-                          sizes="360px"
-                        />
-                      )}
-                    </div>
-                    <span className="text-[11px] uppercase tracking-wider text-accent">{post.category}</span>
-                    <h3 className="mt-2.5 text-[19px] font-semibold leading-snug transition-colors group-hover:text-accent">
-                      {post.title}
-                    </h3>
-                  </Link>
-                </MotionReveal>
-              ))}
+              {posts.items.slice(0, 3).map((post, i) => {
+                const hue = (['85', '165', '25'] as const)[i % 3];
+                return (
+                  <MotionReveal key={post.id} delay={i * 0.08}>
+                    <Link href={`/blog/${post.slug}`} className="group block">
+                      <div className="relative mb-5 aspect-[4/3] overflow-hidden rounded-xl border border-line-soft bg-bg2">
+                        {post.cover_image ? (
+                          <Image
+                            src={post.cover_image}
+                            alt={post.title}
+                            fill
+                            className="object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+                            sizes="360px"
+                          />
+                        ) : (
+                          <div
+                            className="absolute inset-0 transition-transform duration-500 ease-out group-hover:scale-105"
+                            style={{
+                              background: `radial-gradient(120% 100% at 15% 10%, oklch(0.42 0.09 ${hue} / 0.9), transparent 60%), radial-gradient(90% 80% at 90% 90%, oklch(0.55 0.11 300 / 0.5), transparent 60%), linear-gradient(150deg, oklch(0.22 0.04 ${hue}), oklch(0.16 0.028 265))`,
+                            }}
+                          >
+                            <svg className="blog-chart" viewBox="0 0 200 90" preserveAspectRatio="none">
+                              <path
+                                d="M0,50 L28,52 L56,34 L84,38 L112,20 L140,26 L168,14 L200,18"
+                                fill="none"
+                                stroke="oklch(1 0 0 / 0.5)"
+                                strokeWidth={2}
+                              />
+                            </svg>
+                          </div>
+                        )}
+                      </div>
+                      <span className="text-[11px] uppercase tracking-wider text-accent">{post.category}</span>
+                      <h3 className="mt-2.5 text-[19px] font-semibold leading-snug transition-colors group-hover:text-accent">
+                        {post.title}
+                      </h3>
+                    </Link>
+                  </MotionReveal>
+                );
+              })}
             </div>
           </div>
         </section>
@@ -473,12 +494,12 @@ export default async function HomePage() {
 
       {/* CTA BANNER */}
       {isOn('cta') && (
-        <section className="relative overflow-hidden border-b border-line bg-gradient-to-br from-bg2 to-accent-dim px-6 py-24 text-center md:px-16">
+        <section className="relative overflow-hidden border-b border-line px-6 py-24 text-center md:px-16">
           <div
-            className="animate-drift pointer-events-none absolute left-1/2 top-1/2 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent/10 blur-[120px]"
+            className="animate-drift pointer-events-none absolute left-1/2 top-1/2 h-[640px] w-[640px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-r from-accent/25 to-[oklch(0.55_0.11_300_/_0.2)] blur-[120px]"
             aria-hidden="true"
           />
-          <MotionReveal className="relative">
+          <MotionReveal className="glass glass-border-grad relative mx-auto max-w-[760px] rounded-2xl p-12 md:p-16">
             <h2 className="mx-auto mb-4 max-w-[700px] font-serif text-3xl font-normal md:text-[44px]">
               Ready to grow like a brand we&apos;d build ourselves?
             </h2>
@@ -487,7 +508,7 @@ export default async function HomePage() {
             </p>
             <Link
               href="/contact"
-              className="group inline-flex items-center gap-2.5 bg-accent px-8 py-[17px] text-sm font-bold text-bg transition-all hover:-translate-y-0.5 hover:opacity-90 hover:shadow-[0_8px_30px_-8px_var(--accent)]"
+              className="group inline-flex items-center gap-2.5 bg-accent px-8 py-[17px] text-sm font-bold text-bg transition-all hover:-translate-y-1 hover:opacity-90 hover:shadow-[0_20px_40px_-14px_var(--accent)]"
             >
               Book a Free Strategy Call <ArrowRightIcon size={16} className="transition-transform group-hover:translate-x-1" />
             </Link>
