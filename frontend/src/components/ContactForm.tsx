@@ -13,7 +13,8 @@ export function ContactForm({ services, budgets }: { services: string[]; budgets
 
   const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const form = new FormData(e.currentTarget);
+    const formEl = e.currentTarget;
+    const form = new FormData(formEl);
     const payload = Object.fromEntries(form.entries());
 
     const nextErrors: Record<string, string> = {};
@@ -27,7 +28,7 @@ export function ContactForm({ services, budgets }: { services: string[]; budgets
       await apiClient.post('/leads', { ...payload, source: 'contact-page' });
       setStatus('done');
       show("Message sent — we'll get back to you within 24 hours.");
-      e.currentTarget.reset();
+      formEl.reset();
     } catch {
       setStatus('error');
       show('Something went wrong — please try again.', 'error');
