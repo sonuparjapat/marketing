@@ -13,6 +13,24 @@ const base = (size = 20) => ({
   strokeLinejoin: 'round' as const,
 });
 
+export function EyeIcon({ className, size }: IconProps) {
+  return (
+    <svg {...base(size)} className={className}>
+      <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
+export function EyeOffIcon({ className, size }: IconProps) {
+  return (
+    <svg {...base(size)} className={className}>
+      <path d="M9.9 4.24A9.12 9.12 0 0112 4c6.4 0 10 7 10 7a17.7 17.7 0 01-2.34 3.3M6.6 6.6C3.9 8.3 2 11 2 11s3.6 7 10 7a9.28 9.28 0 004.8-1.3M9.9 14.1a3 3 0 004.2-4.2" />
+      <path d="M2 2l20 20" />
+    </svg>
+  );
+}
+
 export function ArrowRightIcon({ className, size }: IconProps) {
   return (
     <svg {...base(size)} className={className}>

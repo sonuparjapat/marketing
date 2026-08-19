@@ -4,11 +4,13 @@ import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import apiClient from '@/lib/apiClient';
 import { setAdminSession } from '@/lib/adminAuth';
+import { EyeIcon, EyeOffIcon } from '@/components/icons';
 
 export default function AdminLoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -50,13 +52,23 @@ export default function AdminLoginPage() {
         </label>
         <label className="mb-6 block">
           <span className="mb-2 block text-xs uppercase tracking-wide text-muted">Password</span>
-          <input
-            type="password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full border border-line bg-bg px-4 py-3 text-sm focus:border-accent focus:outline-none"
-          />
+          <div className="relative">
+            <input
+              type={showPassword ? 'text' : 'password'}
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full border border-line bg-bg px-4 py-3 pr-11 text-sm focus:border-accent focus:outline-none"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              className="absolute right-0 top-0 flex h-full w-11 items-center justify-center text-muted hover:text-accent"
+            >
+              {showPassword ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
+            </button>
+          </div>
         </label>
         {error && <p className="mb-5 text-sm text-red-400">{error}</p>}
         <button
