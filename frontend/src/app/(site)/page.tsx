@@ -74,6 +74,7 @@ export default async function HomePage() {
             style={{ animationDelay: '-6s' }}
             aria-hidden="true"
           />
+          <span className="hero-watermark hidden md:block">Growth</span>
           <div className="relative mx-auto grid max-w-[1312px] items-end gap-12 md:grid-cols-[1.15fr_0.85fr]">
             <MotionReveal>
               <div className="mb-7 flex items-center gap-2.5">
@@ -81,7 +82,7 @@ export default async function HomePage() {
                 <span className="text-xs uppercase tracking-[0.2em] text-accent">Digital Marketing Agency &middot; India</span>
               </div>
               <h1 className="mb-7 max-w-[760px] font-serif text-[40px] font-normal leading-[1.1] md:text-[58px]">
-                We don&apos;t just <span className="font-serif-italic text-accent">market</span> brands.
+                We don&apos;t just <span className="font-serif-italic grad-text">market</span> brands.
                 <br />
                 We&apos;ve built one.
               </h1>
@@ -93,13 +94,13 @@ export default async function HomePage() {
               <div className="flex flex-wrap gap-4">
                 <Link
                   href="/contact"
-                  className="group inline-flex items-center gap-2.5 bg-accent px-7 py-4 text-sm font-bold text-bg transition-all hover:-translate-y-0.5 hover:opacity-90 hover:shadow-[0_8px_30px_-8px_var(--accent)]"
+                  className="group inline-flex items-center gap-2.5 bg-accent px-7 py-4 text-sm font-bold text-bg transition-all hover:-translate-y-1 hover:opacity-90 hover:shadow-[0_20px_40px_-14px_var(--accent)]"
                 >
                   Get a Free Audit <ArrowRightIcon size={16} className="transition-transform group-hover:translate-x-1" />
                 </Link>
                 <Link
                   href="/work"
-                  className="group inline-flex items-center gap-2.5 border border-line px-7 py-4 text-sm transition-all hover:-translate-y-0.5 hover:border-accent hover:text-accent"
+                  className="group inline-flex items-center gap-2.5 border border-line px-7 py-4 text-sm transition-all hover:-translate-y-1 hover:border-accent hover:text-accent"
                 >
                   View Our Work <ArrowRightIcon size={16} className="transition-transform group-hover:translate-x-1" />
                 </Link>
@@ -108,33 +109,79 @@ export default async function HomePage() {
 
             {featured && (
               <MotionReveal delay={0.15}>
-                <div className="relative border border-line bg-bg2/90 p-8 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.5)] backdrop-blur-sm transition-transform duration-500 hover:-translate-y-1">
-                  <div className="pointer-events-none absolute inset-2 border border-accent-dim" />
-                  <div className="mb-6 flex items-center justify-between">
-                    <span className="text-[11px] uppercase tracking-wider text-accent">Real brand. Real results.</span>
-                    <span className="relative flex h-2 w-2">
-                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-75" />
-                      <span className="relative inline-flex h-2 w-2 rounded-full bg-accent" />
-                    </span>
-                  </div>
-                  <div className="font-serif-italic mb-1 text-[46px]">
-                    <CountUp value={featured.results_json[0]?.value || '—'} />
-                  </div>
-                  <div className="mb-7 text-[13px] text-muted">
-                    {featured.results_json[0]?.metric || 'Result'} — {featured.title}
-                  </div>
-                  {heroStats.length > 1 && (
-                    <div className="grid grid-cols-2 gap-4 border-t border-line pt-5">
-                      {heroStats.slice(1, 3).map((r) => (
-                        <div key={r.metric}>
-                          <div className="font-serif-italic text-[22px]">
-                            <CountUp value={r.value} />
-                          </div>
-                          <div className="text-xs text-faint">{r.metric}</div>
-                        </div>
-                      ))}
+                <div className="relative">
+                  <div
+                    className="dash-mock glass hidden md:block"
+                    aria-hidden="true"
+                  >
+                    <div className="dash-mock-bar">
+                      <span />
+                      <span />
+                      <span />
+                      <span className="ml-2 text-[10px] tracking-wide text-faint">Live Dashboard</span>
                     </div>
-                  )}
+                    <div className="dash-mock-body">
+                      <svg viewBox="0 0 260 70" width="100%" height="70" preserveAspectRatio="none">
+                        <defs>
+                          <linearGradient id="dashFill" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="oklch(0.8 0.14 85 / 0.35)" />
+                            <stop offset="100%" stopColor="oklch(0.8 0.14 85 / 0)" />
+                          </linearGradient>
+                        </defs>
+                        <path
+                          d="M0,55 L30,48 L60,50 L90,32 L120,38 L150,20 L180,26 L210,10 L240,16 L260,4 L260,70 L0,70 Z"
+                          fill="url(#dashFill)"
+                        />
+                        <path
+                          d="M0,55 L30,48 L60,50 L90,32 L120,38 L150,20 L180,26 L210,10 L240,16 L260,4"
+                          fill="none"
+                          stroke="var(--accent)"
+                          strokeWidth={2}
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                      <div className="dash-mock-chips">
+                        <span>
+                          <b>+64%</b>CTR
+                        </span>
+                        <span>
+                          <b>2.1x</b>ROAS
+                        </span>
+                        <span>
+                          <b>-29%</b>CPA
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="glass glass-border-grad relative p-8 transition-transform duration-500 hover:-translate-y-1">
+                    <div className="mb-6 flex items-center justify-between">
+                      <span className="text-[11px] uppercase tracking-wider text-accent">Real brand. Real results.</span>
+                      <span className="relative flex h-2 w-2">
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent-2 opacity-75" />
+                        <span className="relative inline-flex h-2 w-2 rounded-full bg-accent-2" />
+                      </span>
+                    </div>
+                    <div className="font-serif-italic grad-text mb-1 text-[46px]">
+                      <CountUp value={featured.results_json[0]?.value || '—'} />
+                    </div>
+                    <div className="mb-7 text-[13px] text-muted">
+                      {featured.results_json[0]?.metric || 'Result'} — {featured.title}
+                    </div>
+                    {heroStats.length > 1 && (
+                      <div className="grid grid-cols-2 gap-4 border-t border-line pt-5">
+                        {heroStats.slice(1, 3).map((r) => (
+                          <div key={r.metric}>
+                            <div className="font-serif-italic text-[22px]">
+                              <CountUp value={r.value} />
+                            </div>
+                            <div className="text-xs text-faint">{r.metric}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </MotionReveal>
             )}
@@ -171,34 +218,28 @@ export default async function HomePage() {
               </p>
             </MotionReveal>
 
-            <div className="grid grid-cols-1 border-t border-line md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
               {services.map((service, i) => {
                 const Icon = SERVICE_ICONS[service.icon] || SERVICE_ICONS.target;
-                const isRightCol = i % 2 === 1;
+                const hue = (['gold', 'emerald', 'coral'] as const)[i % 3];
                 return (
-                  <MotionReveal key={service.id} delay={(i % 2) * 0.08}>
+                  <MotionReveal key={service.id} delay={(i % 3) * 0.08}>
                     <Link
                       href={`/services/${service.slug}`}
-                      className={`group relative block overflow-hidden border-b border-line py-9 pr-0 transition-all duration-300 hover:bg-bg2/50 hover:pl-3 md:pr-10 ${
-                        isRightCol ? 'md:pl-10 md:pr-0 md:hover:pl-13' : 'md:border-r'
-                      }`}
+                      className="group glass relative block overflow-hidden rounded-2xl p-7 transition-all duration-300 hover:-translate-y-1.5 hover:border-accent/40 hover:shadow-[0_36px_64px_-28px_rgba(0,0,0,0.7)]"
                     >
-                      <span className="absolute inset-y-0 left-0 w-0.5 origin-top scale-y-0 bg-accent transition-transform duration-300 group-hover:scale-y-100" />
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <span className="font-serif-italic text-[13px] text-faint">
-                            {String(i + 1).padStart(2, '0')}
-                          </span>
-                          <h3 className="mb-2.5 mt-2.5 text-xl font-semibold transition-colors group-hover:text-accent">{service.title}</h3>
-                          <p className="max-w-[400px] text-[14.5px] leading-relaxed text-muted">
-                            {service.short_description}
-                          </p>
-                        </div>
-                        <Icon
-                          className="mt-1.5 shrink-0 text-accent transition-transform duration-300 group-hover:translate-x-1 group-hover:scale-110 group-hover:rotate-6"
-                          size={18}
-                        />
+                      <span className="font-serif-italic absolute right-6 top-6 text-[13px] text-faint">
+                        {String(i + 1).padStart(2, '0')}
+                      </span>
+                      <div className={`icon-badge ${hue === 'gold' ? 'gold' : hue === 'emerald' ? 'emerald' : 'coral'}`}>
+                        <Icon size={22} />
                       </div>
+                      <h3 className="mb-2.5 mt-5 text-xl font-semibold transition-colors group-hover:text-accent">{service.title}</h3>
+                      <p className="text-[14.5px] leading-relaxed text-muted">{service.short_description}</p>
+                      <span className="mt-4 flex w-full items-center gap-1.5 border-t border-line-soft pt-3.5 text-[11px] uppercase tracking-wide text-accent">
+                        Learn more
+                        <ArrowRightIcon size={12} className="transition-transform group-hover:translate-x-1" />
+                      </span>
                     </Link>
                   </MotionReveal>
                 );
@@ -208,18 +249,60 @@ export default async function HomePage() {
         </section>
       )}
 
+      {/* HOW WE WORK */}
+      {isOn('process') && (
+        <section className="border-b border-line px-6 py-20 md:px-16 md:py-24">
+          <div className="mx-auto max-w-[1312px]">
+            <MotionReveal className="mb-16 flex flex-col justify-between gap-6 md:flex-row md:items-end">
+              <div>
+                <span className="text-xs uppercase tracking-[0.2em] text-accent">How we work</span>
+                <h2 className="mt-3 font-serif text-4xl font-normal md:text-[42px]">Four steps. No black box.</h2>
+              </div>
+              <p className="max-w-[340px] text-[15px] leading-relaxed text-muted">
+                You see exactly what we&apos;re doing and why — every step, every week, on the same dashboard we use.
+              </p>
+            </MotionReveal>
+            <div className="relative pt-10">
+              <div className="process-line hidden md:block" />
+              <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
+                {[
+                  { n: '01', hue: 'gold', title: 'Audit & Diagnose', body: 'Full funnel teardown — spend, creative, landing pages, retention — in the first 7 days.' },
+                  { n: '02', hue: 'emerald', title: 'Strategy & Roadmap', body: 'A 90-day plan with target CAC, ROAS and revenue milestones, agreed before we spend a rupee.' },
+                  { n: '03', hue: 'coral', title: 'Build & Launch', body: 'Creative, landing pages and campaigns shipped by the same pod that wrote the strategy.' },
+                  { n: '04', hue: 'gold', title: 'Scale & Optimize', body: "Weekly testing cycles compound what works and kill what doesn't — fast." },
+                ].map((step, i) => (
+                  <MotionReveal key={step.n} delay={i * 0.06} className="relative">
+                    <div
+                      className={`icon-badge ${step.hue} font-serif-italic mb-5 w-13! h-13! text-lg`}
+                      style={{ borderRadius: '999px' }}
+                    >
+                      {step.n}
+                    </div>
+                    <h4 className="mb-2 text-base font-bold">{step.title}</h4>
+                    <p className="text-[13.5px] leading-relaxed text-muted">{step.body}</p>
+                  </MotionReveal>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* STATS */}
       {isOn('stats') && stats.length > 0 && (
-        <section className="border-b border-line bg-bg2 px-6 py-14 md:px-16">
+        <section className="border-b border-line bg-gradient-to-b from-bg2 to-bg px-6 py-14 md:px-16">
           <div className="mx-auto grid max-w-[1312px] grid-cols-2 gap-8 md:grid-cols-4">
-            {stats.map((s, i) => (
-              <MotionReveal key={s.id} delay={i * 0.06} className={i > 0 ? 'md:border-l md:border-line md:pl-8' : ''}>
-                <div className="font-serif-italic text-4xl text-accent md:text-[44px]">
-                  <CountUp value={s.value} />
-                </div>
-                <div className="mt-1.5 text-[13px] text-muted">{s.label}</div>
-              </MotionReveal>
-            ))}
+            {stats.map((s, i) => {
+              const hueClass = (['text-accent', 'text-accent-2', 'text-accent-3'] as const)[i % 3];
+              return (
+                <MotionReveal key={s.id} delay={i * 0.06} className={i > 0 ? 'md:border-l md:border-line-soft md:pl-8' : ''}>
+                  <div className={`font-serif-italic text-4xl md:text-[44px] ${hueClass}`}>
+                    <CountUp value={s.value} />
+                  </div>
+                  <div className="mt-1.5 text-[13px] text-muted">{s.label}</div>
+                </MotionReveal>
+              );
+            })}
           </div>
         </section>
       )}
@@ -239,9 +322,13 @@ export default async function HomePage() {
             </MotionReveal>
 
             {featured && (
-              <MotionReveal className="mb-6 grid gap-12 border border-accent-dim bg-bg2 p-8 md:grid-cols-2 md:p-12">
-                <div>
-                  <span className="mb-5 inline-block bg-accent px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-bg">
+              <MotionReveal className="glass glass-border-grad relative mb-6 grid gap-12 overflow-hidden rounded-2xl p-8 md:grid-cols-2 md:p-12">
+                <div
+                  className="animate-drift pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-accent/15 blur-[90px]"
+                  aria-hidden="true"
+                />
+                <div className="relative">
+                  <span className="mb-5 inline-block rounded-full bg-gradient-to-r from-accent to-[oklch(0.68_0.15_60)] px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-wide text-bg">
                     Built &amp; owned by {settings.agency_name || 'Anvil'}
                   </span>
                   <h3 className="mb-3 font-serif text-2xl md:text-[30px]">{featured.title}</h3>
@@ -253,10 +340,10 @@ export default async function HomePage() {
                     Read the full story <ArrowRightIcon size={14} />
                   </Link>
                 </div>
-                <div className="grid grid-cols-2 gap-px bg-line">
+                <div className="relative grid grid-cols-2 gap-px overflow-hidden rounded-xl bg-line-soft">
                   {featured.results_json.slice(0, 4).map((r) => (
                     <div key={r.metric} className="bg-bg p-6 transition-colors hover:bg-bg2">
-                      <div className="font-serif-italic text-3xl text-accent">
+                      <div className="font-serif-italic grad-text text-3xl">
                         <CountUp value={r.value} />
                       </div>
                       <div className="mt-1 text-xs text-faint">{r.metric}{r.label ? `, ${r.label}` : ''}</div>
@@ -271,14 +358,14 @@ export default async function HomePage() {
                 <MotionReveal
                   key={cs.id}
                   delay={i * 0.08}
-                  className="group border border-line p-8 transition-all duration-300 hover:-translate-y-1 hover:border-accent-dim hover:shadow-[0_16px_40px_-16px_rgba(0,0,0,0.5)]"
+                  className="group glass rounded-2xl p-8 transition-all duration-300 hover:-translate-y-1.5 hover:border-accent/35 hover:shadow-[0_36px_64px_-28px_rgba(0,0,0,0.7)]"
                 >
                   <span className="text-[11px] uppercase tracking-wider text-faint">{cs.client_industry}</span>
                   <h3 className="mb-5 mt-3 text-xl font-semibold transition-colors group-hover:text-accent">{cs.title}</h3>
                   <div className="mb-5 flex gap-6">
                     {cs.results_json.slice(0, 2).map((r) => (
                       <div key={r.metric}>
-                        <div className="font-serif-italic text-[22px] text-accent">
+                        <div className="font-serif-italic grad-text text-[22px]">
                           <CountUp value={r.value} />
                         </div>
                         <div className="text-xs text-faint">{r.metric}</div>
@@ -310,11 +397,13 @@ export default async function HomePage() {
             <div>
               {whyUs.map((w, i) => (
                 <MotionReveal key={w.id} delay={i * 0.05}>
-                  <div className={`flex gap-6 py-5 border-t border-line ${i === whyUs.length - 1 ? 'border-b' : ''}`}>
-                    <span className="font-serif-italic w-8 shrink-0 text-lg text-accent">
+                  <div
+                    className={`group flex items-start gap-6 border-t border-line-soft py-5 transition-colors hover:border-accent/40 ${i === whyUs.length - 1 ? 'border-b' : ''}`}
+                  >
+                    <span className="font-serif-italic flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-line-soft text-[13px] text-accent transition-all group-hover:border-accent group-hover:bg-accent/10">
                       {String(i + 1).padStart(2, '0')}
                     </span>
-                    <p className="text-[15.5px] leading-relaxed">{w.point}</p>
+                    <p className="pt-0.5 text-[15.5px] leading-relaxed">{w.point}</p>
                   </div>
                 </MotionReveal>
               ))}
