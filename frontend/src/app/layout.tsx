@@ -4,6 +4,7 @@ import Script from 'next/script';
 import './globals.css';
 import { getPublicSettings } from '@/lib/api';
 import { ToastProvider } from '@/components/Toast';
+import { CustomerAuthProvider } from '@/context/CustomerAuthContext';
 
 const newsreader = Newsreader({
   variable: '--font-newsreader',
@@ -49,7 +50,9 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     <html lang="en">
       <body className={`${newsreader.variable} ${manrope.variable} antialiased`}>
         <style>{`:root { --bg: ${bg}; --accent: ${accent}; }`}</style>
-        <ToastProvider>{children}</ToastProvider>
+        <ToastProvider>
+          <CustomerAuthProvider>{children}</CustomerAuthProvider>
+        </ToastProvider>
         {gaId && (
           <>
             <Script src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`} strategy="afterInteractive" />

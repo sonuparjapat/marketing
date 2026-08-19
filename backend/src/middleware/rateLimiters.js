@@ -25,4 +25,15 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-module.exports = { globalLimiter, publicFormLimiter, authLimiter };
+// Customer register/login — a distinct instance from authLimiter so heavy traffic on one
+// (e.g. a burst of customer signups) can't drain the other's per-IP budget and lock out an
+// admin login attempt from the same office/NAT'd IP, or vice versa.
+const customerAuthLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { success: false, message: 'Too many attempts. Please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+module.exports = { globalLimiter, publicFormLimiter, authLimiter, customerAuthLimiter };

@@ -34,6 +34,7 @@ const admins = require('./modules/admins/admins.routes');
 const adminLogs = require('./modules/adminLogs/adminLogs.routes');
 const analytics = require('./modules/analytics/analytics.routes');
 const tracking = require('./modules/tracking/tracking.routes');
+const customerAuth = require('./modules/customerAuth/customerAuth.routes');
 const departments = require('./modules/departments/departments.routes');
 const permissions = require('./modules/permissions/permissions.routes');
 
@@ -85,6 +86,7 @@ app.use('/api/faqs', faqs.publicRouter);
 app.use('/api/pages', pages.publicRouter);
 app.use('/api/homepage-sections', homepageSections.publicRouter);
 app.use('/api/track', tracking.publicRouter);
+app.use('/api/auth', customerAuth.publicRouter);
 
 // ── Admin API ───────────────────────────────────────────────
 app.use('/api/admin', auditLog);

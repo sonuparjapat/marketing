@@ -273,6 +273,21 @@ async function initDB() {
     `);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_page_views_created_at ON page_views(created_at DESC);`);
 
+    // Public-site customer accounts — a separate identity space from admins (see customerAuth
+    // middleware). is_premium is a placeholder flag for future gated content/services; nothing
+    // reads it yet.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS customers (
+        id             SERIAL PRIMARY KEY,
+        name           VARCHAR(150) NOT NULL,
+        email          VARCHAR(200) UNIQUE NOT NULL,
+        password_hash  TEXT NOT NULL,
+        is_premium     BOOLEAN DEFAULT FALSE,
+        is_active      BOOLEAN DEFAULT TRUE,
+        created_at     TIMESTAMP DEFAULT NOW()
+      );
+    `);
+
     await client.query(`ALTER TABLE admins ALTER COLUMN role SET DEFAULT 'editor';`);
     await client.query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;`);
 
@@ -339,7 +354,7 @@ async function initDB() {
     await client.query(`ALTER TABLE posts ADD COLUMN IF NOT EXISTS cover_image_alt VARCHAR(300);`);
 
     await client.query('COMMIT');
-    console.log('Database schema is up to date (23 tables verified/created).');
+    console.log('Database schema is up to date (24 tables verified/created).');
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;

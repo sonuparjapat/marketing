@@ -39,4 +39,30 @@ function checkPermission(key) {
   };
 }
 
-module.exports = { adminAuth, extractToken, requireSuperAdmin, checkPermission };
+// Customer-facing (public site) auth — entirely separate identity space from admins. Reads a
+// distinct `customer_token` cookie (not `token`, which admin sessions use) so the same browser
+// can hold an admin session and a customer session at once without collision. Requires the JWT's
+// `type` claim to be exactly 'customer' — an admin token has no `type` claim at all, so it's
+// rejected here even though both are signed with the same JWT_SECRET.
+function extractCustomerToken(req) {
+  if (req.cookies && req.cookies.customer_token) return req.cookies.customer_token;
+  const header = req.headers.authorization || '';
+  if (header.startsWith('Bearer ')) return header.slice(7);
+  return null;
+}
+
+function customerAuth(req, res, next) {
+  const token = extractCustomerToken(req);
+  if (!token) return fail(res, 'Authentication required', 401);
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (decoded.type !== 'customer') return fail(res, 'Invalid or expired token', 401);
+    req.customer = decoded;
+    next();
+  } catch (err) {
+    return fail(res, 'Invalid or expired token', 401);
+  }
+}
+
+module.exports = { adminAuth, extractToken, requireSuperAdmin, checkPermission, customerAuth, extractCustomerToken };

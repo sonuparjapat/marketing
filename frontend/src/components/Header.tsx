@@ -5,7 +5,9 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { NavLink } from '@/lib/api';
-import { ArrowRightIcon } from '@/components/icons';
+import { ArrowRightIcon, UserIcon } from '@/components/icons';
+import { useCustomerAuth } from '@/context/CustomerAuthContext';
+import { AuthModal } from '@/components/AuthModal';
 
 const FALLBACK_NAV: Pick<NavLink, 'href' | 'label'>[] = [
   { href: '/services', label: 'Services' },
@@ -24,8 +26,10 @@ export function Header({
 }) {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
   const pathname = usePathname();
   const nav = navLinks && navLinks.length > 0 ? navLinks : FALLBACK_NAV;
+  const { customer, loading, logout } = useCustomerAuth();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -69,6 +73,23 @@ export function Header({
         </nav>
 
         <div className="flex items-center gap-4">
+          {!loading &&
+            (customer ? (
+              <div className="hidden items-center gap-3 md:flex">
+                <span className="text-sm text-muted">Hi, {customer.name.split(' ')[0]}</span>
+                <button onClick={logout} className="text-sm text-muted hover:text-accent">
+                  Sign out
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setAuthOpen(true)}
+                aria-label="Sign in"
+                className="hidden h-9 w-9 items-center justify-center rounded-full border border-line text-muted transition-colors hover:border-accent hover:text-accent md:flex"
+              >
+                <UserIcon size={16} />
+              </button>
+            ))}
           <Link
             href="/contact"
             className="group hidden items-center gap-2 rounded-sm bg-accent px-6 py-2.5 text-sm font-bold text-bg transition-all hover:-translate-y-0.5 hover:opacity-90 hover:shadow-[0_8px_24px_-8px_var(--accent)] md:inline-flex"
@@ -117,10 +138,28 @@ export function Header({
               <Link href="/contact" className="mt-3 rounded-sm bg-accent px-6 py-3 text-center text-sm font-bold text-bg">
                 Get Free Audit
               </Link>
+              {!loading &&
+                (customer ? (
+                  <div className="mt-4 flex items-center justify-between border-t border-line pt-4">
+                    <span className="text-sm text-muted">Signed in as {customer.name}</span>
+                    <button onClick={logout} className="text-sm text-accent">
+                      Sign out
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setAuthOpen(true)}
+                    className="mt-4 border-t border-line pt-4 text-left text-sm text-muted hover:text-accent"
+                  >
+                    Sign in / Create account
+                  </button>
+                ))}
             </div>
           </motion.nav>
         )}
       </AnimatePresence>
+
+      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
     </header>
   );
 }
