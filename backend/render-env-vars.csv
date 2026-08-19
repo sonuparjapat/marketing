@@ -1,0 +1,21 @@
+Key,Required,Value,Notes
+DATABASE_URL,Yes,,Your Supabase/Render Postgres connection string — use the Session pooler URL for Supabase
+NODE_ENV,Yes,production,
+PORT,No,,Render sets this automatically; only needed for local dev
+JWT_SECRET,Yes,,"Generate with e.g. openssl rand -hex 32 — if missing, login breaks with a 500"
+JWT_EXPIRES_IN,No,7d,Defaults to 7d if unset
+SEED_ADMIN_NAME,First boot only,,Only used the very first time the DB is empty
+SEED_ADMIN_EMAIL,First boot only,,Only used the very first time the DB is empty
+SEED_ADMIN_PASSWORD,First boot only,,Only used the very first time the DB is empty
+SMTP_HOST,No,smtp-relay.brevo.com,Leave unset to skip sending emails (logs a warning instead of erroring)
+SMTP_PORT,No,587,
+SMTP_USER,No,,Your SMTP/Brevo login
+SMTP_PASS,No,,Your SMTP/Brevo API key or password
+MAIL_FROM,No,,From address on outgoing emails
+ADMIN_EMAIL,No,,Where new-lead/callback admin alert emails are sent
+APP_NAME,No,,Used in email templates
+AWS_ACCESS_KEY_ID,No,,Leave unset to use local-disk upload fallback (works fine; not persistent across some redeploys)
+AWS_SECRET_ACCESS_KEY,No,,Leave unset to use local-disk upload fallback
+AWS_REGION,No,ap-south-1,Only used if AWS keys are set
+AWS_BUCKET_NAME,No,,Only used if AWS keys are set — bucket must exist and allow public-read on uploaded objects
+FRONTEND_URL,Yes,,Used for CORS allowlist — must exactly match the deployed frontend origin, no trailing slash

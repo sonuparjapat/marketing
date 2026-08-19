@@ -52,6 +52,7 @@ export default function DepartmentsPage() {
   const [description, setDescription] = useState('');
   const [grants, setGrants] = useState<Record<string, Grant>>({});
   const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState('');
   const { show } = useToast();
 
   const load = async () => {
@@ -72,13 +73,25 @@ export default function DepartmentsPage() {
     load();
   }, []);
 
-  const groups = useMemo(() => Object.keys(catalog), [catalog]);
-  const allResources = useMemo(() => Object.values(catalog).flat(), [catalog]);
+  const filteredCatalog = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return catalog;
+    const filtered: PermissionCatalog = {};
+    for (const [group, perms] of Object.entries(catalog)) {
+      const matches = perms.filter((p) => p.label.toLowerCase().includes(q) || group.toLowerCase().includes(q));
+      if (matches.length) filtered[group] = matches;
+    }
+    return filtered;
+  }, [catalog, search]);
+
+  const groups = useMemo(() => Object.keys(filteredCatalog), [filteredCatalog]);
+  const visibleResources = useMemo(() => Object.values(filteredCatalog).flat(), [filteredCatalog]);
 
   const openCreate = () => {
     setName('');
     setDescription('');
     setGrants({});
+    setSearch('');
     setCreating(true);
     setEditing(null);
   };
@@ -91,6 +104,7 @@ export default function DepartmentsPage() {
       map[g.resource_key] = { can_create: g.can_create, can_read: g.can_read, can_update: g.can_update, can_delete: g.can_delete };
     }
     setGrants(map);
+    setSearch('');
     setEditing(dept);
     setCreating(false);
   };
@@ -108,10 +122,10 @@ export default function DepartmentsPage() {
   };
 
   const toggleColumn = (action: keyof Grant) => {
-    const allOn = allResources.every((r) => (grants[r.resource_key] || EMPTY_GRANT)[action]);
+    const allOn = visibleResources.every((r) => (grants[r.resource_key] || EMPTY_GRANT)[action]);
     setGrants((prev) => {
       const next = { ...prev };
-      for (const r of allResources) {
+      for (const r of visibleResources) {
         const current = next[r.resource_key] || EMPTY_GRANT;
         next[r.resource_key] = { ...current, [action]: !allOn };
       }
@@ -227,22 +241,53 @@ export default function DepartmentsPage() {
           <Input label="Name" value={name} onChange={(e) => setName(e.target.value)} />
           <Textarea label="Description" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
           <div>
-            <span className="mb-3 block text-xs uppercase tracking-wide text-muted">Permission matrix</span>
+            <div className="mb-3 flex items-center justify-between">
+              <span className="block text-xs uppercase tracking-wide text-muted">Permission matrix</span>
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search resources…"
+                className="w-48 border border-line bg-bg2 px-3 py-1.5 text-xs placeholder:text-faint focus:border-accent focus:outline-none"
+              />
+            </div>
             <div className="max-h-96 overflow-y-auto border border-line">
               <table className="w-full text-sm">
                 <thead className="sticky top-0 bg-bg2">
                   <tr className="border-b border-line text-left text-xs uppercase tracking-wide text-faint">
                     <th className="px-4 py-2.5">Resource</th>
-                    {CRUD_ACTIONS.map((a) => (
-                      <th key={a.key} className="px-3 py-2.5 text-center">
-                        <button type="button" onClick={() => toggleColumn(a.key)} className="hover:text-accent">
-                          {a.label}
-                        </button>
-                      </th>
-                    ))}
+                    {CRUD_ACTIONS.map((a) => {
+                      const checkedCount = visibleResources.filter((r) => (grants[r.resource_key] || EMPTY_GRANT)[a.key]).length;
+                      const allChecked = visibleResources.length > 0 && checkedCount === visibleResources.length;
+                      const someChecked = checkedCount > 0 && !allChecked;
+                      return (
+                        <th key={a.key} className="px-3 py-2.5 text-center">
+                          <label className="flex flex-col items-center gap-1 hover:text-accent">
+                            <input
+                              type="checkbox"
+                              checked={allChecked}
+                              ref={(el) => {
+                                if (el) el.indeterminate = someChecked;
+                              }}
+                              onChange={() => toggleColumn(a.key)}
+                              disabled={visibleResources.length === 0}
+                              className="h-3.5 w-3.5 accent-accent"
+                            />
+                            {a.label}
+                          </label>
+                        </th>
+                      );
+                    })}
                   </tr>
                 </thead>
                 <tbody>
+                  {groups.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="px-4 py-6 text-center text-faint">
+                        No resources match &ldquo;{search}&rdquo;.
+                      </td>
+                    </tr>
+                  )}
                   {groups.map((group) => (
                     <Fragment key={group}>
                       <tr className="bg-bg2/60">
@@ -250,7 +295,7 @@ export default function DepartmentsPage() {
                           {group}
                         </td>
                       </tr>
-                      {catalog[group].map((perm) => {
+                      {filteredCatalog[group].map((perm) => {
                         const g = grants[perm.resource_key] || EMPTY_GRANT;
                         return (
                           <tr key={perm.resource_key} className="border-b border-line last:border-0">

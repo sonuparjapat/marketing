@@ -10,20 +10,14 @@ const { PutObjectCommand } = require('@aws-sdk/client-s3');
 
 const UPLOADS_DIR = path.join(__dirname, '../../../uploads');
 
-const login = asyncHandler(async (req, res) => {
-  const { email, password } = req.body;
-  if (!email || !password) return fail(res, 'Email and password are required', 400);
-
-  const result = await pool.query('SELECT * FROM admins WHERE email = $1', [email.trim().toLowerCase()]);
-  const admin = result.rows[0];
-  if (!admin) return fail(res, 'Invalid credentials', 401);
-  if (admin.is_active === false) return fail(res, 'This account has been deactivated', 403);
-
-  const match = await bcrypt.compare(password, admin.password_hash);
-  if (!match) return fail(res, 'Invalid credentials', 401);
-
+// Resolves a raw `admins` row into the full profile shape returned by both login and /me —
+// department name + flattened "resource.action" permission strings. Super admins and admins with
+// no department get an empty permissions array (super_admin bypasses checkPermission entirely, so
+// its permissions array is never actually consulted).
+async function resolveAdminProfile(admin) {
   let permissions = [];
   let departmentName = null;
+
   if (admin.role !== 'super_admin' && admin.department_id) {
     const permResult = await pool.query(
       `SELECT permissions.resource_key, department_permissions.can_create, department_permissions.can_read,
@@ -48,6 +42,31 @@ const login = asyncHandler(async (req, res) => {
     departmentName = deptResult.rows[0]?.name || null;
   }
 
+  return {
+    id: admin.id,
+    name: admin.name,
+    email: admin.email,
+    role: admin.role,
+    department_id: admin.department_id,
+    department_name: departmentName,
+    permissions,
+  };
+}
+
+const login = asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) return fail(res, 'Email and password are required', 400);
+
+  const result = await pool.query('SELECT * FROM admins WHERE email = $1', [email.trim().toLowerCase()]);
+  const admin = result.rows[0];
+  if (!admin) return fail(res, 'Invalid credentials', 401);
+  if (admin.is_active === false) return fail(res, 'This account has been deactivated', 403);
+
+  const match = await bcrypt.compare(password, admin.password_hash);
+  if (!match) return fail(res, 'Invalid credentials', 401);
+
+  const profile = await resolveAdminProfile(admin);
+
   const token = jwt.sign(
     {
       id: admin.id,
@@ -55,7 +74,7 @@ const login = asyncHandler(async (req, res) => {
       role: admin.role,
       name: admin.name,
       department_id: admin.department_id,
-      permissions,
+      permissions: profile.permissions,
     },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
@@ -70,18 +89,7 @@ const login = asyncHandler(async (req, res) => {
     maxAge: 7 * 24 * 60 * 60 * 1000,
   });
 
-  ok(res, {
-    token,
-    admin: {
-      id: admin.id,
-      name: admin.name,
-      email: admin.email,
-      role: admin.role,
-      department_id: admin.department_id,
-      department_name: departmentName,
-      permissions,
-    },
-  });
+  ok(res, { token, admin: profile });
 });
 
 const logout = asyncHandler(async (req, res) => {
@@ -89,8 +97,21 @@ const logout = asyncHandler(async (req, res) => {
   ok(res, { loggedOut: true });
 });
 
+// The "verify" endpoint — called on every app mount/refresh (see AdminAuthContext.tsx), not just
+// at login. Deliberately re-reads the admin + their department's current permissions from the
+// database on every call, rather than trusting the (up to 7-day-old) JWT claims. This closes two
+// gaps the JWT-embedded approach has: a deactivated account stays rejected immediately instead of
+// only at next login, and a department's permission changes take effect on the admin's next page
+// refresh instead of only their next login. checkPermission() on other routes still reads the JWT
+// directly (no DB hit per request, for performance) — only this endpoint pays the freshness cost,
+// since it's called rarely.
 const me = asyncHandler(async (req, res) => {
-  ok(res, req.admin);
+  const result = await pool.query('SELECT * FROM admins WHERE id = $1', [req.admin.id]);
+  const admin = result.rows[0];
+  if (!admin || admin.is_active === false) return fail(res, 'This account is no longer active', 401);
+
+  const profile = await resolveAdminProfile(admin);
+  ok(res, profile);
 });
 
 const stats = asyncHandler(async (req, res) => {
