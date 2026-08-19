@@ -190,7 +190,6 @@ POST/DELETE  /admin/push-tokens
 <li>Custom editor pages (PostEditor, leads, callbacks, etc.) don't call <code>hasPermission()</code> to hide Save/Publish controls for view-only users — they rely solely on the backend 403, so a view-only admin sees fully interactive controls that only fail after clicking</li>
 <li>Mobile push notifications are non-functional outside Expo Go — <code>getExpoPushTokenAsync()</code> needs an EAS <code>projectId</code> that isn't configured anywhere (no <code>eas.json</code>, no <code>extra.eas.projectId</code> in <code>app.json</code>) — needs the project owner's EAS account/project info to fix</li>
 <li>Mobile blog post and case-study bodies are HTML-stripped to plain text (<code>stripHtml()</code> in <code>post/[slug].tsx</code>/<code>work/[slug].tsx</code>) — no images, tables, embeds, links, or formatting reach mobile even though the editor supports all of them. Fixing this needs an HTML-to-native renderer (e.g. <code>react-native-render-html</code>) — non-trivial, and version-sensitive against Expo SDK 57 per <code>mobile/AGENTS.md</code></li>
-<li>Testimonials are hard-capped at the top 3 on the homepage regardless of how many exist; client logos render as a plain wrapping flex row with no scroll control at large counts — both are good carousel candidates, not yet built</li>
 <li>User-side (customer-facing) login/premium-membership system — not started</li>
 </ul>
 

@@ -108,7 +108,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen">
-      <aside className="w-60 shrink-0 overflow-y-auto border-r border-line bg-bg2 px-5 py-8">
+      <aside className="sticky top-0 h-screen w-60 shrink-0 overflow-y-auto border-r border-line bg-bg2 px-5 py-8">
         <Link href="/admin" className="font-serif-italic mb-10 block px-2 text-xl">
           Anvil <span className="text-accent">/ admin</span>
         </Link>
