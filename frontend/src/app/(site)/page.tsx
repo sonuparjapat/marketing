@@ -54,7 +54,7 @@ export default async function HomePage() {
       {isOn('hero') && (
         <section className="relative overflow-hidden border-b border-line px-6 pb-24 pt-20 md:px-16 md:pb-28 md:pt-24">
           <video
-            className="absolute inset-0 h-full w-full object-cover"
+            className="animate-kenburns absolute inset-0 h-full w-full object-cover"
             src="/homesection.mp4"
             autoPlay
             muted
@@ -384,8 +384,12 @@ export default async function HomePage() {
 
       {/* CTA BANNER */}
       {isOn('cta') && (
-        <section className="border-b border-line bg-gradient-to-br from-bg2 to-accent-dim px-6 py-24 text-center md:px-16">
-          <MotionReveal>
+        <section className="relative overflow-hidden border-b border-line bg-gradient-to-br from-bg2 to-accent-dim px-6 py-24 text-center md:px-16">
+          <div
+            className="animate-drift pointer-events-none absolute left-1/2 top-1/2 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent/10 blur-[120px]"
+            aria-hidden="true"
+          />
+          <MotionReveal className="relative">
             <h2 className="mx-auto mb-4 max-w-[700px] font-serif text-3xl font-normal md:text-[44px]">
               Ready to grow like a brand we&apos;d build ourselves?
             </h2>
@@ -394,4 +398,13 @@ export default async function HomePage() {
             </p>
             <Link
               href="/contact"
-              className="inline-flex items-center gap-2.5 bg-accent px-8 py-[17px] te
+              className="group inline-flex items-center gap-2.5 bg-accent px-8 py-[17px] text-sm font-bold text-bg transition-all hover:-translate-y-0.5 hover:opacity-90 hover:shadow-[0_8px_30px_-8px_var(--accent)]"
+            >
+              Book a Free Strategy Call <ArrowRightIcon size={16} className="transition-transform group-hover:translate-x-1" />
+            </Link>
+          </MotionReveal>
+        </section>
+      )}
+    </main>
+  );
+}

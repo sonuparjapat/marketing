@@ -130,6 +130,24 @@ body {
   }
 }
 
+/* Slow ken-burns zoom for the hero background video */
+@keyframes kenburns {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.12);
+  }
+}
+.animate-kenburns {
+  animation: kenburns 24s ease-in-out infinite alternate;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-kenburns {
+    animation: none;
+  }
+}
+
 /* Slow ambient drift for hero decorative glow orbs */
 @keyframes drift {
   0%,
