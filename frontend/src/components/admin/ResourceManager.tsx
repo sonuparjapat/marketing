@@ -49,7 +49,7 @@ export function ResourceManager<T extends Row>({
   const { hasPermission } = useAdminAuth();
   const resource = apiPath.replace(/^\/admin\//, '').replace(/-/g, '_');
   const canCreate = hasPermission(`${resource}.create`);
-  const canEdit = hasPermission(`${resource}.edit`);
+  const canEdit = hasPermission(`${resource}.update`);
   const canDelete = hasPermission(`${resource}.delete`);
 
   const load = async () => {

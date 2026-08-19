@@ -7,7 +7,7 @@ const publicRouter = express.Router();
 publicRouter.post('/', publicFormLimiter, createLead);
 
 const adminRouter = express.Router();
-adminRouter.get('/', adminAuth, checkPermission('leads.view'), listLeads);
-adminRouter.patch('/:id', adminAuth, checkPermission('leads.edit'), updateLead);
+adminRouter.get('/', adminAuth, checkPermission('leads.read'), listLeads);
+adminRouter.patch('/:id', adminAuth, checkPermission('leads.update'), updateLead);
 
 module.exports = { publicRouter, adminRouter };

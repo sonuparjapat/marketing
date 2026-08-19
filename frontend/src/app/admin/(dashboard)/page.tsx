@@ -19,7 +19,7 @@ type Stats = {
 export default function AdminDashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const { hasPermission } = useAdminAuth();
-  const canViewLeads = hasPermission('leads.view');
+  const canViewLeads = hasPermission('leads.read');
 
   const load = useCallback(() => {
     apiClient.get('/admin/stats').then((res) => setStats(res.data.data));

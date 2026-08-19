@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import apiClient from '@/lib/apiClient';
 import { useToast } from '@/components/Toast';
 import { TableSkeleton } from '@/components/Skeleton';
@@ -9,40 +9,27 @@ import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Input, Textarea } from '@/components/ui/Field';
 
-type Permission = { id: number; key: string; module: string; action: string; label: string };
+type Permission = { id: number; resource_key: string; label: string; module_group: string };
 type PermissionCatalog = Record<string, Permission[]>;
+type Grant = { can_create: boolean; can_read: boolean; can_update: boolean; can_delete: boolean };
+type PermissionGrant = Grant & { resource_key: string };
 type Department = {
   id: number;
   name: string;
   description: string | null;
-  permission_keys: string[];
+  permissions: PermissionGrant[];
   admin_count: number;
   created_at: string;
 };
 
-const MODULE_LABELS: Record<string, string> = {
-  leads: 'Leads',
-  callbacks: 'Callbacks',
-  subscribers: 'Subscribers',
-  posts: 'Blog Posts',
-  blog_categories: 'Blog Categories',
-  case_studies: 'Case Studies',
-  services: 'Services',
-  testimonials: 'Testimonials',
-  team: 'Team',
-  faqs: 'FAQs',
-  pages: 'Pages',
-  nav_links: 'Nav Links',
-  homepage_stats: 'Homepage Stats',
-  why_us: 'Why Us',
-  client_logos: 'Client Logos',
-  homepage_sections: 'Homepage Sections',
-  media: 'Media Library',
-  settings: 'Settings',
-  docs: 'Docs',
-  analytics: 'Analytics',
-  logs: 'Activity Log',
-};
+const CRUD_ACTIONS: { key: keyof Grant; label: string }[] = [
+  { key: 'can_create', label: 'Create' },
+  { key: 'can_read', label: 'Read' },
+  { key: 'can_update', label: 'Update' },
+  { key: 'can_delete', label: 'Delete' },
+];
+
+const EMPTY_GRANT: Grant = { can_create: false, can_read: false, can_update: false, can_delete: false };
 
 function errMessage(err: unknown, fallback: string) {
   if (err && typeof err === 'object' && 'response' in err) {
@@ -51,13 +38,19 @@ function errMessage(err: unknown, fallback: string) {
   return fallback;
 }
 
+function grantCount(grants: PermissionGrant[]) {
+  return grants.reduce((n, g) => n + CRUD_ACTIONS.filter((a) => g[a.key]).length, 0);
+}
+
 export default function DepartmentsPage() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [catalog, setCatalog] = useState<PermissionCatalog>({});
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Department | null>(null);
   const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState({ name: '', description: '', permission_keys: [] as string[] });
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [grants, setGrants] = useState<Record<string, Grant>>({});
   const [saving, setSaving] = useState(false);
   const { show } = useToast();
 
@@ -77,18 +70,28 @@ export default function DepartmentsPage() {
 
   useEffect(() => {
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const modules = useMemo(() => Object.keys(catalog), [catalog]);
+  const groups = useMemo(() => Object.keys(catalog), [catalog]);
+  const allResources = useMemo(() => Object.values(catalog).flat(), [catalog]);
 
   const openCreate = () => {
-    setForm({ name: '', description: '', permission_keys: [] });
+    setName('');
+    setDescription('');
+    setGrants({});
     setCreating(true);
     setEditing(null);
   };
 
   const openEdit = (dept: Department) => {
-    setForm({ name: dept.name, description: dept.description || '', permission_keys: dept.permission_keys });
+    setName(dept.name);
+    setDescription(dept.description || '');
+    const map: Record<string, Grant> = {};
+    for (const g of dept.permissions) {
+      map[g.resource_key] = { can_create: g.can_create, can_read: g.can_read, can_update: g.can_update, can_delete: g.can_delete };
+    }
+    setGrants(map);
     setEditing(dept);
     setCreating(false);
   };
@@ -98,38 +101,37 @@ export default function DepartmentsPage() {
     setEditing(null);
   };
 
-  const togglePermission = (key: string) => {
-    setForm((p) => ({
-      ...p,
-      permission_keys: p.permission_keys.includes(key)
-        ? p.permission_keys.filter((k) => k !== key)
-        : [...p.permission_keys, key],
-    }));
+  const toggleCell = (resourceKey: string, action: keyof Grant) => {
+    setGrants((prev) => {
+      const current = prev[resourceKey] || EMPTY_GRANT;
+      return { ...prev, [resourceKey]: { ...current, [action]: !current[action] } };
+    });
   };
 
-  const toggleModule = (module: string, keys: string[]) => {
-    setForm((p) => {
-      const allSelected = keys.every((k) => p.permission_keys.includes(k));
-      return {
-        ...p,
-        permission_keys: allSelected
-          ? p.permission_keys.filter((k) => !keys.includes(k))
-          : Array.from(new Set([...p.permission_keys, ...keys])),
-      };
+  const toggleColumn = (action: keyof Grant) => {
+    const allOn = allResources.every((r) => (grants[r.resource_key] || EMPTY_GRANT)[action]);
+    setGrants((prev) => {
+      const next = { ...prev };
+      for (const r of allResources) {
+        const current = next[r.resource_key] || EMPTY_GRANT;
+        next[r.resource_key] = { ...current, [action]: !allOn };
+      }
+      return next;
     });
   };
 
   const onSave = async () => {
-    if (!form.name.trim()) {
+    if (!name.trim()) {
       show('Department name is required.', 'error');
       return;
     }
     setSaving(true);
+    const permissions: PermissionGrant[] = Object.entries(grants).map(([resource_key, g]) => ({ resource_key, ...g }));
     try {
       if (creating) {
-        await apiClient.post('/admin/departments', form);
+        await apiClient.post('/admin/departments', { name, description, permissions });
       } else if (editing) {
-        await apiClient.put(`/admin/departments/${editing.id}`, form);
+        await apiClient.put(`/admin/departments/${editing.id}`, { name, description, permissions });
       }
       close();
       await load();
@@ -159,7 +161,9 @@ export default function DepartmentsPage() {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="font-serif text-2xl">Departments</h1>
-          <p className="mt-1 text-xs text-faint">Each department grants a fixed set of permissions to the admins assigned to it.</p>
+          <p className="mt-1 text-xs text-faint">
+            Each department grants Create/Read/Update/Delete access per resource to the admins assigned to it.
+          </p>
         </div>
         <Button onClick={openCreate}>+ New department</Button>
       </div>
@@ -177,7 +181,7 @@ export default function DepartmentsPage() {
               <tr className="border-b border-line bg-bg2 text-left text-xs uppercase tracking-wide text-faint">
                 <th className="px-4 py-3">Name</th>
                 <th className="px-4 py-3">Description</th>
-                <th className="px-4 py-3">Permissions</th>
+                <th className="px-4 py-3">Grants</th>
                 <th className="px-4 py-3">Admins</th>
                 <th className="px-4 py-3" />
               </tr>
@@ -187,7 +191,7 @@ export default function DepartmentsPage() {
                 <tr key={d.id} className="border-b border-line last:border-0">
                   <td className="px-4 py-3 font-medium">{d.name}</td>
                   <td className="px-4 py-3 text-muted">{d.description || '—'}</td>
-                  <td className="px-4 py-3 text-muted">{d.permission_keys.length}</td>
+                  <td className="px-4 py-3 text-muted">{grantCount(d.permissions)}</td>
                   <td className="px-4 py-3 text-muted">{d.admin_count}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-right">
                     <button onClick={() => openEdit(d)} className="mr-4 text-accent hover:opacity-80">
@@ -208,7 +212,7 @@ export default function DepartmentsPage() {
         open={modalOpen}
         onClose={close}
         title={creating ? 'New department' : `Edit ${editing?.name}`}
-        maxWidth="max-w-2xl"
+        maxWidth="max-w-3xl"
         footer={
           <>
             <Button variant="ghost" onClick={close}>
@@ -221,42 +225,54 @@ export default function DepartmentsPage() {
         }
       >
         <div className="space-y-5">
-          <Input label="Name" value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} />
-          <Textarea
-            label="Description"
-            rows={2}
-            value={form.description}
-            onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
-          />
+          <Input label="Name" value={name} onChange={(e) => setName(e.target.value)} />
+          <Textarea label="Description" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
           <div>
-            <span className="mb-3 block text-xs uppercase tracking-wide text-muted">Permissions</span>
-            <div className="max-h-80 space-y-4 overflow-y-auto border border-line p-4">
-              {modules.map((module) => {
-                const perms = catalog[module];
-                const keys = perms.map((p) => p.key);
-                const allSelected = keys.every((k) => form.permission_keys.includes(k));
-                return (
-                  <div key={module}>
-                    <label className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-accent">
-                      <input type="checkbox" checked={allSelected} onChange={() => toggleModule(module, keys)} className="h-3.5 w-3.5 accent-accent" />
-                      {MODULE_LABELS[module] || module}
-                    </label>
-                    <div className="ml-5 flex flex-wrap gap-x-5 gap-y-1.5">
-                      {perms.map((p) => (
-                        <label key={p.key} className="flex items-center gap-2 text-sm text-muted">
-                          <input
-                            type="checkbox"
-                            checked={form.permission_keys.includes(p.key)}
-                            onChange={() => togglePermission(p.key)}
-                            className="h-3.5 w-3.5 accent-accent"
-                          />
-                          {p.label}
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
+            <span className="mb-3 block text-xs uppercase tracking-wide text-muted">Permission matrix</span>
+            <div className="max-h-96 overflow-y-auto border border-line">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-bg2">
+                  <tr className="border-b border-line text-left text-xs uppercase tracking-wide text-faint">
+                    <th className="px-4 py-2.5">Resource</th>
+                    {CRUD_ACTIONS.map((a) => (
+                      <th key={a.key} className="px-3 py-2.5 text-center">
+                        <button type="button" onClick={() => toggleColumn(a.key)} className="hover:text-accent">
+                          {a.label}
+                        </button>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {groups.map((group) => (
+                    <Fragment key={group}>
+                      <tr className="bg-bg2/60">
+                        <td colSpan={5} className="px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-accent">
+                          {group}
+                        </td>
+                      </tr>
+                      {catalog[group].map((perm) => {
+                        const g = grants[perm.resource_key] || EMPTY_GRANT;
+                        return (
+                          <tr key={perm.resource_key} className="border-b border-line last:border-0">
+                            <td className="px-4 py-2 text-muted">{perm.label}</td>
+                            {CRUD_ACTIONS.map((a) => (
+                              <td key={a.key} className="px-3 py-2 text-center">
+                                <input
+                                  type="checkbox"
+                                  checked={g[a.key]}
+                                  onChange={() => toggleCell(perm.resource_key, a.key)}
+                                  className="h-3.5 w-3.5 accent-accent"
+                                />
+                              </td>
+                            ))}
+                          </tr>
+                        );
+                      })}
+                    </Fragment>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>

@@ -7,7 +7,7 @@ const publicRouter = express.Router();
 publicRouter.post('/', publicFormLimiter, requestCallback);
 
 const adminRouter = express.Router();
-adminRouter.get('/', adminAuth, checkPermission('callbacks.view'), listCallbacks);
-adminRouter.patch('/:id', adminAuth, checkPermission('callbacks.edit'), updateCallback);
+adminRouter.get('/', adminAuth, checkPermission('callbacks.read'), listCallbacks);
+adminRouter.patch('/:id', adminAuth, checkPermission('callbacks.update'), updateCallback);
 
 module.exports = { publicRouter, adminRouter };

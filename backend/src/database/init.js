@@ -259,15 +259,9 @@ async function initDB() {
     `);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_admin_logs_created_at ON admin_logs(created_at DESC);`);
 
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS docs (
-        id           SERIAL PRIMARY KEY,
-        doc_type     VARCHAR(30) UNIQUE NOT NULL,
-        title        VARCHAR(200) NOT NULL,
-        content      TEXT DEFAULT '',
-        updated_at   TIMESTAMP DEFAULT NOW()
-      );
-    `);
+    // Admin docs (User Manual / Testing / Developer) moved from a DB-backed CMS to static,
+    // code-defined React pages — see frontend/src/content/adminDocs/. Drop the now-unused table.
+    await client.query(`DROP TABLE IF EXISTS docs;`);
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS page_views (
@@ -291,21 +285,41 @@ async function initDB() {
       );
     `);
 
+    // RBAC, resource-level: one permission row per manageable resource (not per action).
+    // Grants live on department_permissions as four explicit CRUD flags per (department, resource)
+    // pair, rather than as separate permission rows per action — mirrors how permission systems
+    // are modeled in most production admin panels (a resource entity + a CRUD capability set),
+    // rather than treating each action as its own atomic permission record.
+    //
+    // One-time migration: the previous schema had `permissions.module`/`.action`/`.key` (one row
+    // per resource+action) and a plain department_permissions join table with no CRUD columns.
+    // Detect that old shape and drop it before recreating — safe because this RBAC feature is new
+    // enough that no production department/permission data depends on the old rows surviving.
+    const permsShape = await client.query(
+      `SELECT column_name FROM information_schema.columns WHERE table_name = 'permissions' AND column_name = 'resource_key'`
+    );
+    if (permsShape.rows.length === 0) {
+      await client.query(`DROP TABLE IF EXISTS department_permissions;`);
+      await client.query(`DROP TABLE IF EXISTS permissions;`);
+    }
+
     await client.query(`
       CREATE TABLE IF NOT EXISTS permissions (
         id            SERIAL PRIMARY KEY,
-        key           VARCHAR(80) UNIQUE NOT NULL,
-        module        VARCHAR(40) NOT NULL,
-        action        VARCHAR(20) NOT NULL,
-        label         VARCHAR(150) NOT NULL
+        resource_key  VARCHAR(80) UNIQUE NOT NULL,
+        label         VARCHAR(150) NOT NULL,
+        module_group  VARCHAR(60) NOT NULL
       );
     `);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_permissions_module ON permissions(module);`);
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS department_permissions (
         department_id   INT NOT NULL REFERENCES departments(id) ON DELETE CASCADE,
         permission_id    INT NOT NULL REFERENCES permissions(id) ON DELETE CASCADE,
+        can_create       BOOLEAN NOT NULL DEFAULT FALSE,
+        can_read         BOOLEAN NOT NULL DEFAULT FALSE,
+        can_update       BOOLEAN NOT NULL DEFAULT FALSE,
+        can_delete       BOOLEAN NOT NULL DEFAULT FALSE,
         PRIMARY KEY (department_id, permission_id)
       );
     `);
@@ -325,7 +339,7 @@ async function initDB() {
     await client.query(`ALTER TABLE posts ADD COLUMN IF NOT EXISTS cover_image_alt VARCHAR(300);`);
 
     await client.query('COMMIT');
-    console.log('Database schema is up to date (24 tables verified/created).');
+    console.log('Database schema is up to date (23 tables verified/created).');
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;
@@ -338,7 +352,6 @@ async function initDB() {
   await seedDefaultPages();
   await seedDefaultHomepageSections();
   await seedDefaultNavLinks();
-  await seedDefaultDocs();
   await seedPermissions();
 }
 
@@ -347,43 +360,40 @@ async function initDB() {
 // "departments" themselves: managing admin accounts and permissions stays
 // Super Admin-only regardless of department, so there's no scenario where a
 // department could grant itself more access.
+// One row per manageable resource. `label` is the human-readable resource name; department grants
+// against it are the four can_create/can_read/can_update/can_delete flags on department_permissions
+// (see the schema above), not separate permission rows per action. `group` is purely a UI grouping
+// hint for the Departments permission matrix, matching AdminShell's sidebar groupings.
 const PERMISSION_MODULES = [
-  { module: 'leads', label: 'Leads', actions: ['view', 'edit'] },
-  { module: 'callbacks', label: 'Callbacks', actions: ['view', 'edit'] },
-  { module: 'subscribers', label: 'Subscribers', actions: ['view', 'export'] },
-  { module: 'posts', label: 'Blog Posts', actions: ['view', 'create', 'edit', 'delete'] },
-  { module: 'blog_categories', label: 'Blog Categories', actions: ['view', 'create', 'edit', 'delete'] },
-  { module: 'case_studies', label: 'Case Studies', actions: ['view', 'create', 'edit', 'delete'] },
-  { module: 'services', label: 'Services', actions: ['view', 'create', 'edit', 'delete'] },
-  { module: 'testimonials', label: 'Testimonials', actions: ['view', 'create', 'edit', 'delete'] },
-  { module: 'team', label: 'Team', actions: ['view', 'create', 'edit', 'delete'] },
-  { module: 'faqs', label: 'FAQs', actions: ['view', 'create', 'edit', 'delete'] },
-  { module: 'pages', label: 'Pages', actions: ['view', 'edit'] },
-  { module: 'nav_links', label: 'Nav Links', actions: ['view', 'create', 'edit', 'delete'] },
-  { module: 'homepage_stats', label: 'Homepage Stats', actions: ['view', 'create', 'edit', 'delete'] },
-  { module: 'why_us', label: 'Why Us', actions: ['view', 'create', 'edit', 'delete'] },
-  { module: 'client_logos', label: 'Client Logos', actions: ['view', 'create', 'edit', 'delete'] },
-  { module: 'homepage_sections', label: 'Homepage Sections', actions: ['view', 'edit'] },
-  { module: 'media', label: 'Media Library', actions: ['view', 'upload', 'delete'] },
-  { module: 'settings', label: 'Settings', actions: ['view', 'edit'] },
-  { module: 'docs', label: 'Docs', actions: ['view', 'edit'] },
-  { module: 'analytics', label: 'Analytics', actions: ['view'] },
-  { module: 'logs', label: 'Activity Log', actions: ['view'] },
+  { key: 'leads', label: 'Leads', group: 'Inbox' },
+  { key: 'callbacks', label: 'Callbacks', group: 'Inbox' },
+  { key: 'subscribers', label: 'Subscribers', group: 'Inbox' },
+  { key: 'posts', label: 'Blog Posts', group: 'Content' },
+  { key: 'blog_categories', label: 'Blog Categories', group: 'Content' },
+  { key: 'case_studies', label: 'Case Studies', group: 'Content' },
+  { key: 'services', label: 'Services', group: 'Content' },
+  { key: 'testimonials', label: 'Testimonials', group: 'Content' },
+  { key: 'team', label: 'Team', group: 'Content' },
+  { key: 'faqs', label: 'FAQs', group: 'Content' },
+  { key: 'pages', label: 'Pages', group: 'Content' },
+  { key: 'nav_links', label: 'Nav Links', group: 'Homepage' },
+  { key: 'homepage_stats', label: 'Homepage Stats', group: 'Homepage' },
+  { key: 'why_us', label: 'Why Us', group: 'Homepage' },
+  { key: 'client_logos', label: 'Client Logos', group: 'Homepage' },
+  { key: 'homepage_sections', label: 'Homepage Sections', group: 'Homepage' },
+  { key: 'media', label: 'Media Library', group: 'System' },
+  { key: 'settings', label: 'Settings', group: 'System' },
+  { key: 'analytics', label: 'Analytics', group: 'Insights' },
+  { key: 'logs', label: 'Activity Log', group: 'Insights' },
 ];
 
-const ACTION_LABELS = { view: 'View', create: 'Create', edit: 'Edit', delete: 'Delete', upload: 'Upload', export: 'Export' };
-
 async function seedPermissions() {
-  for (const { module, label, actions } of PERMISSION_MODULES) {
-    for (const action of actions) {
-      const key = `${module}.${action}`;
-      const permLabel = `${ACTION_LABELS[action] || action} ${label}`;
-      await pool.query(
-        `INSERT INTO permissions (key, module, action, label) VALUES ($1, $2, $3, $4)
-         ON CONFLICT (key) DO NOTHING`,
-        [key, module, action, permLabel]
-      );
-    }
+  for (const { key, label, group } of PERMISSION_MODULES) {
+    await pool.query(
+      `INSERT INTO permissions (resource_key, label, module_group) VALUES ($1, $2, $3)
+       ON CONFLICT (resource_key) DO NOTHING`,
+      [key, label, group]
+    );
   }
 }
 
@@ -540,21 +550,6 @@ async function seedDefaultNavLinks() {
        VALUES ($1, $2, 'footer', $3, TRUE)
        ON CONFLICT (label, location) DO NOTHING`,
       [label, href, i]
-    );
-  }
-}
-
-async function seedDefaultDocs() {
-  const docs = [
-    { doc_type: 'user-manual', title: 'User Manual' },
-    { doc_type: 'testing', title: 'Testing Guide' },
-    { doc_type: 'developer', title: 'Developer Docs' },
-  ];
-  for (const d of docs) {
-    await pool.query(
-      `INSERT INTO docs (doc_type, title, content) VALUES ($1, $2, '')
-       ON CONFLICT (doc_type) DO NOTHING`,
-      [d.doc_type, d.title]
     );
   }
 }

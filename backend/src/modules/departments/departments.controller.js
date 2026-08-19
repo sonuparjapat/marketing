@@ -5,7 +5,17 @@ const { ok, fail } = require('../../utils/response');
 const listDepartments = asyncHandler(async (req, res) => {
   const result = await pool.query(`
     SELECT departments.*,
-      COALESCE(json_agg(DISTINCT permissions.key) FILTER (WHERE permissions.key IS NOT NULL), '[]') AS permission_keys,
+      COALESCE(
+        json_agg(
+          json_build_object(
+            'resource_key', permissions.resource_key,
+            'can_create', department_permissions.can_create,
+            'can_read', department_permissions.can_read,
+            'can_update', department_permissions.can_update,
+            'can_delete', department_permissions.can_delete
+          )
+        ) FILTER (WHERE permissions.resource_key IS NOT NULL), '[]'
+      ) AS permissions,
       COUNT(DISTINCT admins.id)::int AS admin_count
     FROM departments
     LEFT JOIN department_permissions ON department_permissions.department_id = departments.id
@@ -17,8 +27,28 @@ const listDepartments = asyncHandler(async (req, res) => {
   ok(res, { items: result.rows, page: 1, limit: result.rows.length, total: result.rows.length });
 });
 
+// `grants` is an array of {resource_key, can_create, can_read, can_update, can_delete}. Rows with
+// every flag false are skipped — no point storing an all-false grant row.
+async function insertPermissionGrants(client, departmentId, grants) {
+  const rows = (grants || []).filter((g) => g.can_create || g.can_read || g.can_update || g.can_delete);
+  if (!rows.length) return;
+
+  const values = [];
+  const placeholders = rows.map((g, i) => {
+    const base = i * 6;
+    values.push(departmentId, g.resource_key, Boolean(g.can_create), Boolean(g.can_read), Boolean(g.can_update), Boolean(g.can_delete));
+    return `($${base + 1}, (SELECT id FROM permissions WHERE resource_key = $${base + 2}), $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6})`;
+  });
+
+  await client.query(
+    `INSERT INTO department_permissions (department_id, permission_id, can_create, can_read, can_update, can_delete)
+     VALUES ${placeholders.join(', ')}`,
+    values
+  );
+}
+
 const createDepartment = asyncHandler(async (req, res) => {
-  const { name, description, permission_keys } = req.body;
+  const { name, description, permissions } = req.body;
   if (!name) return fail(res, 'name is required', 400);
 
   const client = await pool.connect();
@@ -30,12 +60,8 @@ const createDepartment = asyncHandler(async (req, res) => {
     );
     const department = deptResult.rows[0];
 
-    if (Array.isArray(permission_keys) && permission_keys.length) {
-      await client.query(
-        `INSERT INTO department_permissions (department_id, permission_id)
-         SELECT $1, id FROM permissions WHERE key = ANY($2::text[])`,
-        [department.id, permission_keys]
-      );
+    if (Array.isArray(permissions)) {
+      await insertPermissionGrants(client, department.id, permissions);
     }
     await client.query('COMMIT');
     ok(res, department, 201);
@@ -49,7 +75,7 @@ const createDepartment = asyncHandler(async (req, res) => {
 });
 
 const updateDepartment = asyncHandler(async (req, res) => {
-  const { name, description, permission_keys } = req.body;
+  const { name, description, permissions } = req.body;
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -69,15 +95,9 @@ const updateDepartment = asyncHandler(async (req, res) => {
       await client.query(`UPDATE departments SET ${fields.join(', ')} WHERE id = $${values.length}`, values);
     }
 
-    if (Array.isArray(permission_keys)) {
+    if (Array.isArray(permissions)) {
       await client.query('DELETE FROM department_permissions WHERE department_id = $1', [req.params.id]);
-      if (permission_keys.length) {
-        await client.query(
-          `INSERT INTO department_permissions (department_id, permission_id)
-           SELECT $1, id FROM permissions WHERE key = ANY($2::text[])`,
-          [req.params.id, permission_keys]
-        );
-      }
+      await insertPermissionGrants(client, req.params.id, permissions);
     }
 
     const result = await client.query('SELECT * FROM departments WHERE id = $1', [req.params.id]);

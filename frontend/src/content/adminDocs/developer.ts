@@ -1,0 +1,220 @@
+export const DEVELOPER_HTML = `<h2>Architecture overview</h2>
+<p>Three independent apps sharing one backend API:</p>
+<pre><code>marketing/
+├── backend/    Node.js + Express + PostgreSQL — the single source of truth
+├── frontend/   Next.js 15 (App Router) — public site + admin panel
+└── mobile/     Expo (React Native) — consumer app + hidden admin quick-view
+</code></pre>
+<p>The frontend and mobile app never touch the database directly — everything goes through the backend's REST API. Both admin surfaces (web and mobile) share the same JWT auth and the same backend endpoints.</p>
+
+<h2>Tech stack</h2>
+<ul>
+<li><strong>Backend</strong>: Express 5, <code>pg</code> (raw SQL, no ORM), JWT auth, bcryptjs, Socket.io, Multer (uploads), Nodemailer (SMTP), AWS SDK v3 (S3)</li>
+<li><strong>Frontend</strong>: Next.js 15 App Router, TypeScript, Tailwind CSS v4, Framer Motion, TipTap (rich text), Recharts, socket.io-client</li>
+<li><strong>Mobile</strong>: Expo SDK 57, expo-router, TypeScript, React Query, expo-notifications</li>
+<li><strong>Database</strong>: PostgreSQL (local Postgres for dev, Supabase in production)</li>
+<li><strong>Hosting</strong>: Render (backend), Vercel (frontend)</li>
+</ul>
+
+<h2>Backend folder structure</h2>
+<pre><code>backend/src/
+├── app.js               Express app: middleware, route mounting
+├── server.js             Entry point: runs initDB(), attaches Socket.io, starts listening
+├── socket.js              Socket.io server + JWT handshake auth + emitToAdmins()
+├── config/                db.js (pg Pool), aws.js, mailer.js, multer.js
+├── database/
+│   ├── init.js            Idempotent schema creation — CREATE TABLE IF NOT EXISTS for
+│   │                       every table, runs on every boot, safe to re-run any time
+│   └── seed.js             One-off demo content seeder (not run automatically)
+├── middleware/             auth.js (adminAuth, requireSuperAdmin), auditLog.js,
+│                           rateLimiters.js, errorHandler.js
+├── modules/&lt;name&gt;/         One folder per resource: &lt;name&gt;.controller.js + &lt;name&gt;.routes.js
+└── utils/                  crud.js (generic admin CRUD factory), response.js (ok/fail
+                            envelope), asyncHandler.js, slugify.js, notifyAdmins.js
+</code></pre>
+
+<h2>Database schema (23 tables)</h2>
+<p>All defined in <code>backend/src/database/init.js</code>, which is the single source of truth for schema — read that file directly for exact column types before making assumptions.</p>
+<ul>
+<li><strong>admins</strong> — id, name, email, password_hash, role (super_admin/editor), department_id (FK → departments, NULL for super_admin), is_active, last_login</li>
+<li><strong>departments</strong> — id, name, description; each department is a named bundle of resource permissions assigned to editor-role admins</li>
+<li><strong>permissions</strong> — id, resource_key (e.g. <code>posts</code>), label, module_group — one row per manageable resource (not per action), seeded by <code>seedPermissions()</code> on every boot from the <code>PERMISSION_MODULES</code> list</li>
+<li><strong>department_permissions</strong> — join table: department_id + permission_id, plus four boolean columns <code>can_create</code>/<code>can_read</code>/<code>can_update</code>/<code>can_delete</code> — the actual CRUD grant lives on this row, not as separate permission records per action. PK on (department_id, permission_id)</li>
+<li><strong>leads</strong> — contact form submissions with a status pipeline (new → contacted → qualified → proposal → won/lost)</li>
+<li><strong>callbacks</strong> — callback requests, status pending/called</li>
+<li><strong>subscribers</strong> — newsletter signups</li>
+<li><strong>posts</strong> — blog posts: title, slug, excerpt, content (HTML), cover_image, cover_image_alt, category (free text, sourced from the blog_categories list in the editor), tags (JSONB), author (display name, kept in sync from the selected team member), author_id (FK → team, nullable — null means a guest author, whose name lives only in the <code>author</code> text field), meta_title/description, is_published, views</li>
+<li><strong>blog_categories</strong> — id, name, slug, sort_order — a managed list that feeds the category dropdown in the post editor and the filter chips on the public blog page; <code>posts.category</code> stores the plain name text, not a foreign key, so renaming a category here does not retroactively rename it on existing posts</li>
+<li><strong>case_studies</strong> — title, slug, client_name/industry, challenge, solution, results_json (JSONB array of {metric, value, label}), cover_image, tags, is_featured, is_published</li>
+<li><strong>services</strong> — title, slug, descriptions, icon (fixed enum matched against <code>frontend/src/components/icons.tsx</code>'s SERVICE_ICONS map), features_json, is_active, sort_order</li>
+<li><strong>testimonials</strong> — client details, rating, review, is_featured, is_active</li>
+<li><strong>team</strong> — name, designation, bio, photo, linkedin_url, sort_order, is_active</li>
+<li><strong>settings</strong> — generic key/value store for all site-wide config (see Settings keys below)</li>
+<li><strong>media</strong> — every uploaded file (url, filename, mime_type, size_bytes, uploaded_by)</li>
+<li><strong>nav_links</strong> — header/footer navigation, UNIQUE(label, location)</li>
+<li><strong>homepage_stats</strong>, <strong>why_us_points</strong>, <strong>client_logos</strong> — homepage content blocks, all with sort_order + is_active</li>
+<li><strong>faqs</strong> — question/answer, category (either "general" or a service slug)</li>
+<li><strong>pages</strong> — fixed-slug CMS content: about, privacy-policy, terms, refund-policy (admin can edit content, cannot create/delete slugs)</li>
+<li><strong>homepage_sections</strong> — section_key (hero/logos/services/stats/case_studies/why_us/testimonials/blog/cta), is_enabled, sort_order — homepage reads this to conditionally render each section</li>
+<li><strong>push_tokens</strong> — admin_id, Expo push token, platform</li>
+<li><strong>admin_logs</strong> — automatic audit trail (see Audit logging below)</li>
+<li><strong>page_views</strong> — lightweight traffic tracking (path, referrer, created_at)</li>
+</ul>
+<p>Note: the admin User Manual / Testing Guide / Developer Docs pages are <em>not</em> a database table — see "Admin documentation pages" below.</p>
+
+<h3>Settings keys</h3>
+<p>All stored as plain text rows in the <code>settings</code> table, whitelisted for public exposure in <code>backend/src/modules/settings/settings.controller.js</code>'s <code>PUBLIC_KEYS</code> array:</p>
+<pre><code>agency_name, tagline, phone, email, address, whatsapp_number,
+instagram_url, linkedin_url, youtube_url, twitter_url,
+default_meta_title, default_meta_description, ga_measurement_id,
+agency_legal_name, privacy_contact_email, notice_period, budget_ranges,
+primary_color, accent_color
+</code></pre>
+<p><code>budget_ranges</code> is stored as a JSON string (an array), parsed client-side. <code>primary_color</code>/<code>accent_color</code> are hex strings consumed by the runtime theme system (see below).</p>
+
+<h2>API reference</h2>
+<p>Base path <code>/api</code>. Every response follows the envelope <code>{success: true, data: ...}</code> or <code>{success: false, message: "..."}</code>. Admin routes require <code>Authorization: Bearer &lt;jwt&gt;</code> (or an httpOnly <code>token</code> cookie).</p>
+<h3>Public</h3>
+<pre><code>POST   /leads                      Submit contact form
+POST   /callbacks                  Request a callback
+POST   /subscribe                  Newsletter signup
+POST   /track/pageview             Fire-and-forget page view tracking
+GET    /posts, /posts/:slug        Blog (list supports ?page=&amp;category=&amp;tag=&amp;search=, paginated)
+GET    /blog-categories            Managed category list
+GET    /case-studies, /case-studies/:slug
+GET    /services, /services/:slug
+GET    /testimonials
+GET    /team
+GET    /faqs                       ?category= filter
+GET    /pages/:slug
+GET    /nav-links                  Returns {header: [...], footer: [...]}
+GET    /homepage-stats, /why-us, /client-logos
+GET    /homepage-sections
+GET    /settings/public
+</code></pre>
+<h3>Admin (JWT required)</h3>
+<pre><code>POST   /admin/login, /admin/logout, GET /admin/me
+GET    /admin/stats                Dashboard numbers
+POST   /admin/upload                Multipart image upload → {url, media}
+GET/POST/PUT/DELETE  /admin/&lt;resource&gt;   for: leads, callbacks, subscribers, posts,
+                     blog-categories, case-studies, services, testimonials, team, faqs, pages,
+                     nav-links, homepage-stats, why-us, client-logos, media
+PATCH  /admin/homepage-sections/:id     Toggle is_enabled only
+GET/PUT  /admin/settings
+GET/POST/PATCH  /admin/admins           Super Admin only (requireSuperAdmin)
+GET/POST/PUT/DELETE  /admin/departments  Super Admin only
+GET    /admin/permissions               Full permission catalog, grouped by module_group — Super Admin only
+GET    /admin/logs                      Audit trail
+GET    /admin/analytics
+POST/DELETE  /admin/push-tokens
+</code></pre>
+<p>Not every resource exposes every verb — e.g. <code>pages</code> and <code>homepage-sections</code> deliberately have no create/delete routes, since their rows are fixed by design. Every other admin resource route is additionally gated by <code>checkPermission('&lt;resource&gt;.&lt;action&gt;')</code> where action is <code>create</code>/<code>read</code>/<code>update</code>/<code>delete</code> — see RBAC below. There is no <code>/admin/docs</code> API — the admin documentation pages are static, code-defined React pages, not a database resource.</p>
+
+<h2>Auth model</h2>
+<p><code>backend/src/middleware/auth.js</code>:</p>
+<ul>
+<li><strong>adminAuth</strong> — reads the JWT from either the <code>token</code> cookie or an <code>Authorization: Bearer</code> header, verifies it against <code>JWT_SECRET</code>, attaches the decoded payload to <code>req.admin</code></li>
+<li><strong>requireSuperAdmin</strong> — checks <code>req.admin.role === 'super_admin'</code>, must run after adminAuth</li>
+</ul>
+<p>Passwords are bcrypt-hashed (cost factor 12). Tokens expire per <code>JWT_EXPIRES_IN</code> (default 7d). Deactivated admins (<code>is_active = false</code>) are blocked at login time only — an already-issued token for a since-deactivated account remains valid until it naturally expires, since we don't hit the database on every authenticated request for performance reasons.</p>
+
+<h2>Role-based access control (RBAC)</h2>
+<p>Permission granularity is resource-level with four explicit CRUD flags, not per-sidebar-section and not one row per action — every manageable resource has exactly one row in <code>permissions</code>, and a department's grant on that resource is a single <code>department_permissions</code> row carrying <code>can_create</code>/<code>can_read</code>/<code>can_update</code>/<code>can_delete</code> booleans. An editor can be granted Read + Update on Blog Posts without Create or Delete, and the delete button simply won't render for them, while the backend independently rejects a forged DELETE request with 403 regardless of what the UI shows.</p>
+<ul>
+<li><strong>Resources</strong> are seeded into the <code>permissions</code> table by <code>seedPermissions()</code> in <code>init.js</code> from the <code>PERMISSION_MODULES</code> constant (one entry per resource: <code>{ key, label, group }</code>) — that constant is the single source of truth for "what can be permissioned"; add a new resource there, not directly in SQL.</li>
+<li><strong>Departments</strong> are named bundles of per-resource CRUD grants (<code>department_permissions</code>). An editor-role admin's effective permissions are whatever their assigned department grants; an admin with no department has none.</li>
+<li><strong>Super Admin bypasses all permission checks</strong> unconditionally — <code>checkPermission</code> (<code>backend/src/middleware/auth.js</code>) short-circuits to <code>next()</code> when <code>req.admin.role === 'super_admin'</code>, before ever consulting the department's grants.</li>
+<li><strong>The JWT stores flattened "resource.action" strings, not the raw boolean columns</strong> — <code>admin.controller.js</code>'s <code>login()</code> reads each granted resource's four flags and expands them into strings like <code>posts.read</code>, <code>posts.update</code> (only for flags that are <code>true</code>), then signs that flat array into the token. <code>checkPermission(key)</code> and the frontend's <code>hasPermission(key)</code> both just check this array for a matching string — the resource+flags storage shape is an implementation detail that never leaks past login. Action names are always <code>create</code>/<code>read</code>/<code>update</code>/<code>delete</code>, never <code>view</code>/<code>edit</code>.</li>
+<li>Permissions are resolved once at login, not re-queried per request — a permission change to a department only takes effect for admins in that department the next time they log in; it is not instant, same tradeoff as the existing <code>is_active</code> deactivation-at-login-only behavior.</li>
+<li><strong>Managing Admins, Departments and Permissions themselves is Super Admin-only and not delegable</strong> — deliberately excluded from <code>PERMISSION_MODULES</code>, so there is no resource a department could hold CRUD on that would let it grant itself (or anyone) more access. This is the one privilege-escalation path the design closes by construction rather than by a runtime check.</li>
+<li><strong>Frontend enforcement</strong> is UX-only, never security: <code>frontend/src/context/AdminAuthContext.tsx</code> exposes <code>hasPermission(key)</code> from the admin's JWT-decoded permissions array (super_admin always returns true); <code>AdminShell.tsx</code> filters sidebar nav groups by each item's required <code>.read</code> permission; <code>ResourceManager.tsx</code> auto-derives its resource's key from its <code>apiPath</code> (kebab-case → snake_case, e.g. <code>/admin/case-studies</code> → <code>case_studies</code>) and hides its "+ New"/Edit/Delete controls per <code>.create</code>/<code>.update</code>/<code>.delete</code>. The backend's <code>checkPermission</code> middleware is the actual authority in every case.</li>
+<li><strong>Departments admin UI</strong> (<code>frontend/src/app/admin/(dashboard)/departments/page.tsx</code>) renders a matrix: one row per resource (grouped by <code>module_group</code>), four checkbox columns (Create/Read/Update/Delete). Clicking a column header toggles that action for every resource at once. <code>GET /admin/permissions</code> returns the catalog grouped by <code>module_group</code> for this UI; department create/update send a <code>permissions: [{resource_key, can_create, can_read, can_update, can_delete}]</code> array, which <code>departments.controller.js</code>'s <code>insertPermissionGrants()</code> bulk-inserts (skipping all-false rows).</li>
+</ul>
+
+<h2>The generic admin CRUD factory</h2>
+<p><code>backend/src/utils/crud.js</code> exports <code>buildAdminCrud(table, {allowedFields, defaultOrder})</code>, which returns list/getOne/create/update/remove handlers with pagination, a whitelisted-fields insert/update, and automatic JSON serialization for JSONB columns. Most simple resources (testimonials, team, nav-links, etc.) just wire this factory directly into their routes file. Resources needing custom logic (posts' slug auto-generation, leads' status pipeline, case studies' related-lookups) wrap the factory's methods with their own controller functions.</p>
+<p><strong>To add a new admin-managed resource</strong>: add a table in <code>init.js</code>, create a <code>modules/&lt;name&gt;/</code> folder with a controller (usually just <code>buildAdminCrud(...)</code> plus a public list function) and a routes file, mount both in <code>app.js</code>, then add a matching frontend page using <code>&lt;ResourceManager&gt;</code> (<code>frontend/src/components/admin/ResourceManager.tsx</code>) — it handles the table, create/edit modal, and delete confirmation generically from a <code>fields</code> config array. Add an entry to <code>AdminShell.tsx</code>'s <code>NAV_GROUPS</code> so it's reachable.</p>
+
+<h2>The blog editor's architecture</h2>
+<p>Not built on ResourceManager — it's a dedicated full-page editor (<code>frontend/src/components/admin/PostEditor.tsx</code>) shared between <code>/admin/posts/new</code> and <code>/admin/posts/[id]/edit</code>. The rich text editor itself (<code>RichTextEditor.tsx</code>) is TipTap v3 with StarterKit, Underline, Highlight, CodeBlockLowlight, Placeholder, CharacterCount, TextStyle+Color (text color), TextAlign, TableKit (from <code>@tiptap/extension-table</code> — bundles Table/TableRow/TableHeader/TableCell), and Youtube extensions, plus a floating <code>BubbleMenu</code> (imported from <code>@tiptap/react/menus</code>, not the main package export). Table editing needs the <code>.prose-editor td/th</code>, <code>.selectedCell</code>, and <code>.column-resize-handle</code> rules in <code>globals.css</code> for cell-selection and column-resize visuals — TipTap's table extension ships no CSS of its own.</p>
+<p><strong>Important gotcha</strong>: TipTap's CodeBlockLowlight only highlights code live inside the editor via ProseMirror decorations — <code>editor.getHTML()</code> serializes plain, unhighlighted <code>&lt;pre&gt;&lt;code&gt;</code>. Syntax highlighting for the public-facing post is done separately, at render time, by <code>frontend/src/lib/highlightCode.ts</code>, which re-parses saved code blocks through <code>lowlight</code> server-side before rendering. Don't assume saved post content already contains <code>hljs-*</code> classes — it doesn't.</p>
+<p>The table-of-contents utility (<code>frontend/src/lib/toc.ts</code>, which injects heading <code>id</code>s via regex and returns a heading list) is reused by the admin documentation pages' sidebar navigation (see "Admin documentation pages" below) — <code>RichTextEditor</code> itself is blog/case-study/page content only, since the docs are no longer edited through it.</p>
+<p><strong>Post authorship</strong>: <code>posts.author_id</code> optionally links to a <code>team</code> row. In <code>PostEditor.tsx</code>, the Author field toggles between a team-member <code>&lt;select&gt;</code> (sets <code>author_id</code> and copies that member's name into the legacy <code>author</code> text field) and a free-text "Guest author" mode (clears <code>author_id</code>, types the name directly). <code>getPost</code> (<code>posts.controller.js</code>) LEFT JOINs <code>team</code> when <code>author_id</code> is set to return <code>author_photo</code>/<code>author_designation</code>/<code>author_bio</code>/<code>author_linkedin_url</code> for the public post's author card — all null for a guest author, which the frontend falls back to an initial-letter avatar for.</p>
+<p><strong>Image uploads</strong> (<code>ImageUploadField.tsx</code>, used for post cover images and everywhere else <code>ResourceManager</code>'s <code>type: 'image'</code> field is used) has explicit Remove and Replace controls — Remove clears the value outright rather than requiring the admin to hand-edit the URL text box.</p>
+
+<h2>Admin documentation pages</h2>
+<p>User Manual, Testing Guide, and Developer Docs (this page) are <strong>static, code-defined React pages</strong> — <code>frontend/src/app/admin/(dashboard)/docs/user-manual/page.tsx</code>, <code>.../docs/testing/page.tsx</code>, <code>.../docs/developer/page.tsx</code> — not a database-backed CMS. There is no "Edit" button, no rich text editor, and no <code>docs</code> table. Content lives as an HTML string constant in <code>frontend/src/content/adminDocs/*.ts</code>, rendered through a shared shell (<code>frontend/src/components/admin/StaticDocPage.tsx</code>) that builds the sticky TOC sidebar from the content's headings via <code>lib/toc.ts</code>.</p>
+<p><strong>To update these docs, edit the content constant directly and ship it as a normal code change</strong> — the same way any other change to this codebase gets made. This is a deliberate choice: earlier this project had a DB-editable CMS for docs (content table, rich text editor, admin-facing Edit button, a public unauthenticated share link), which was reworked in favor of this simpler model to match how the reference project (<code>ayurvedaeccom</code>) keeps its admin docs — plain code, maintained by whoever is doing the development work, always in sync with git history, no separate "content" to fall out of date from the actual codebase.</p>
+<p>No permission gates these pages beyond the standard admin-auth check — <code>docs</code> is not in <code>PERMISSION_MODULES</code>, since there's no create/update/delete operation to gate (the set of three pages is fixed, and every authenticated admin can read them, same as <code>ayurvedaeccom</code>'s docs pages have no permission entry either).</p>
+
+<h2>AdminAuthContext</h2>
+<p><code>frontend/src/context/AdminAuthContext.tsx</code>, mounted once in <code>app/admin/(dashboard)/layout.tsx</code> around <code>AdminShell</code>. Shows the localStorage-cached admin immediately on mount (no loading flash), then silently calls <code>GET /admin/me</code> in the background to refresh permissions/department in case they changed since the token was issued. Exposes <code>admin</code>, <code>loading</code>, <code>isSuperAdmin</code>, <code>hasPermission(key)</code>, <code>logout()</code>, and <code>refresh()</code> via <code>useAdminAuth()</code>. Every admin page reads from this context rather than calling <code>getAdminUser()</code>/localStorage directly, so there's one place that decides what the logged-in admin can see and do.</p>
+
+<h2>Reusable UI kit</h2>
+<p><code>frontend/src/components/ui/</code> — small, unopinionated building blocks used across the admin panel so new pages don't hand-roll modals/buttons/loaders again: <code>Modal</code> (Escape-to-close, backdrop-click-to-close), <code>Button</code> (variants: primary/secondary/ghost/danger, built-in loading spinner state), <code>Field</code> (<code>Input</code>/<code>Textarea</code>/<code>Select</code>, consistent label + focus styling), <code>Spinner</code>/<code>PageLoader</code>, and <code>EmptyState</code>. <code>ResourceManager.tsx</code> and the Departments/Admins pages are built entirely on these; prefer them over ad hoc markup when adding new admin UI.</p>
+
+<h2>Runtime theme system</h2>
+<p>Admin sets <code>primary_color</code>/<code>accent_color</code> (hex strings) via Settings → Appearance. <code>frontend/src/app/layout.tsx</code> fetches these server-side on every request and injects a <code>&lt;style&gt;:root{--bg:...;--accent:...}&lt;/style&gt;</code> tag that overrides the CSS custom properties defined in <code>globals.css</code>. A regex whitelist (<code>SAFE_CSS_COLOR</code>) sanitizes the value before injection since it's rendered without escaping. No rebuild or redeploy needed for a color change to go live — it's subject only to the ~60s Next.js fetch cache (<code>revalidate: 60</code> in <code>frontend/src/lib/api.ts</code>'s <code>fetchApi</code>).</p>
+<p>Mobile mirrors this via <code>mobile/src/context/theme.tsx</code>'s <code>ThemeProvider</code>, which fetches <code>/settings/public</code> once on app boot and exposes a <code>useTheme()</code> hook. Every screen builds its <code>StyleSheet</code> inside the component body via <code>useMemo(() =&gt; createStyles(colors), [colors])</code> rather than at module scope, so it can react to the fetched theme.</p>
+
+<h2>Real-time + push notifications</h2>
+<p><code>backend/src/socket.js</code> runs a Socket.io server attached to the same HTTP server as Express (see <code>server.js</code>). Clients authenticate on connection via <code>socket.handshake.auth.token</code> (a JWT), and all authenticated admin sockets join an <code>"admins"</code> room. <code>backend/src/utils/notifyAdmins.js</code>'s <code>notifyAdmins(event, {title, body, data})</code> is called from the leads and callbacks controllers right after a successful insert — it emits the Socket.io event to the admins room <em>and</em> sends an Expo push notification to every row in <code>push_tokens</code> via a plain <code>fetch</code> to Expo's push API (no SDK dependency). It's safe to call with zero registered tokens.</p>
+<p>Frontend: <code>frontend/src/lib/useAdminSocket.ts</code> is a hook wrapping a module-level <code>socket.io-client</code> singleton; <code>AdminShell.tsx</code> uses it to show toasts and increment the Inbox badge.</p>
+<p>Mobile: the hidden <code>/admin</code> section (<code>mobile/src/app/admin/login.tsx</code>, <code>index.tsx</code>) calls <code>registerForAdminPushNotifications()</code> (<code>mobile/src/lib/pushNotifications.ts</code>) after login, which requests permission, gets an Expo push token, and POSTs it to <code>/admin/push-tokens</code>. Tapping a received notification is handled globally in <code>mobile/src/app/_layout.tsx</code> via <code>Notifications.addNotificationResponseReceivedListener</code>, which routes to <code>/admin</code>.</p>
+
+<h2>Audit logging</h2>
+<p><code>backend/src/middleware/auditLog.js</code> is mounted once, globally, at <code>app.use('/api/admin', auditLog)</code> — before any individual resource router. It wraps <code>res.json</code> for every POST/PUT/PATCH/DELETE request (skipping <code>/login</code> and <code>/logout</code>) and, on a successful response, inserts a row into <code>admin_logs</code> using <code>req.admin.id</code>, the HTTP-method-derived action, and <code>req.baseUrl</code> (which correctly reflects the deepest-mounted router's path by the time the wrapped function actually runs — verified in practice, not just in theory). No individual module needs to call this explicitly.</p>
+
+<h2>Environment variables</h2>
+<p>See <code>backend/.env.example</code> for the full authoritative list. The ones that most commonly get missed when setting up a new deployment:</p>
+<ul>
+<li><code>JWT_SECRET</code> — if missing, login succeeds through password verification but then throws inside <code>jwt.sign()</code>, producing a 500 error with the misleading-sounding message "Internal server error" and a stack trace mentioning <code>secretOrPrivateKey must have a value</code>. This is the single most common deployment mistake seen so far.</li>
+<li><code>DATABASE_URL</code> — for Supabase specifically, must use the full <code>postgres.&lt;project-ref&gt;</code> username format when connecting through the pooler host, and the password is project-specific (never reuse a password from a different Supabase project).</li>
+<li><code>FRONTEND_URL</code> — used by the CORS allowlist in <code>app.js</code>; must exactly match the deployed frontend's origin or admin API calls from the real frontend will be rejected.</li>
+<li><code>SEED_ADMIN_EMAIL</code> / <code>SEED_ADMIN_PASSWORD</code> — only used the very first time <code>initDB()</code> runs against an empty <code>admins</code> table. If not set before that first boot, no admin account is created and one must be inserted manually via SQL.</li>
+<li><code>AWS_ACCESS_KEY_ID</code> / <code>AWS_SECRET_ACCESS_KEY</code> / <code>AWS_REGION</code> / <code>AWS_BUCKET_NAME</code> — all currently unset, no S3 bucket has been created. Uploads fall back to local disk (<code>backend/uploads/</code>, served via <code>express.static</code>) automatically when these are absent — functional, but files won't survive a redeploy on hosts with an ephemeral filesystem. Set all four and the upload code switches to S3 with no code change required.</li>
+</ul>
+
+<h2>Deployment</h2>
+<ul>
+<li><strong>Backend → Render</strong>: standard Node web service, <code>npm start</code> runs <code>node src/server.js</code>, which calls <code>initDB()</code> before listening — so schema migrations apply automatically on every deploy, no separate migration step needed.</li>
+<li><strong>Frontend → Vercel</strong>: standard Next.js deploy, environment variables (<code>NEXT_PUBLIC_API_URL</code>, <code>NEXT_PUBLIC_SITE_URL</code>), plus <code>frontend/.npmrc</code> with <code>legacy-peer-deps=true</code> — required because Vercel's strict <code>npm install</code> otherwise fails on a peer-dependency mismatch between several <code>@tiptap/*</code> extension patch versions (e.g. <code>@tiptap/extension-character-count@"*"</code> vs <code>@tiptap/pm@3.30.2</code>). Don't remove this file without confirming the TipTap dependency tree has fully aligned versions.</li>
+<li><strong>Database → Supabase</strong>: use the Session pooler connection string (not Transaction pooler, not Direct) — Render's outbound networking is IPv4-only, and Session pooler is the IPv4-compatible option built for exactly this kind of always-on server (as opposed to Transaction pooler, meant for stateless/serverless callers).</li>
+</ul>
+
+<h2>Known backlog (audited, not yet fixed)</h2>
+<p>Found during the cross-app audit above but not yet actioned — real gaps, just not done:</p>
+<ul>
+<li>No pagination UI in the admin panel — lists cap at 100–200 rows with no page controls, past which records are unreachable</li>
+<li>No admin password-reset path — only name/role/department/active-status are editable after creation; rotating a password needs a direct DB edit</li>
+<li>Custom editor pages (PostEditor, leads, callbacks, etc.) don't call <code>hasPermission()</code> to hide Save/Publish controls for view-only users — they rely solely on the backend 403, so a view-only admin sees fully interactive controls that only fail after clicking</li>
+<li>Mobile push notifications are non-functional outside Expo Go — <code>getExpoPushTokenAsync()</code> needs an EAS <code>projectId</code> that isn't configured anywhere (no <code>eas.json</code>, no <code>extra.eas.projectId</code> in <code>app.json</code>) — needs the project owner's EAS account/project info to fix</li>
+<li>Mobile blog post and case-study bodies are HTML-stripped to plain text (<code>stripHtml()</code> in <code>post/[slug].tsx</code>/<code>work/[slug].tsx</code>) — no images, tables, embeds, links, or formatting reach mobile even though the editor supports all of them. Fixing this needs an HTML-to-native renderer (e.g. <code>react-native-render-html</code>) — non-trivial, and version-sensitive against Expo SDK 57 per <code>mobile/AGENTS.md</code></li>
+<li>Testimonials are hard-capped at the top 3 on the homepage regardless of how many exist; client logos render as a plain wrapping flex row with no scroll control at large counts — both are good carousel candidates, not yet built</li>
+<li>User-side (customer-facing) login/premium-membership system — not started</li>
+</ul>
+
+<h2>Explicitly out of scope (don't be surprised these don't exist)</h2>
+<ul>
+<li>Newsletter campaign composer/sender — subscriber capture and CSV export only</li>
+<li>Scheduled/future-dated publishing</li>
+<li>Comments, product-style bulk import tooling, a support-ticket system</li>
+<li>Multi-language / i18n</li>
+</ul>
+
+<h2>Change history</h2>
+<p>High-level phases this project has gone through, newest first:</p>
+<ul>
+<li><strong>Cross-app audit + fix pass</strong> — a systematic audit of admin/web/mobile turned up and fixed: <code>PostEditor.tsx</code>'s category picker reading the wrong response shape (crashed the editor); missing <code>checkPermission('media.upload')</code> on <code>/admin/upload</code> (RBAC bypass — any admin could upload regardless of department); <code>/admin/stats</code> leaking lead PII to admins without <code>leads.view</code> (now conditionally omits <code>recentLeads</code>/lead counts server-side rather than gating the whole dashboard); an unguarded <code>JSON.parse(settings.budget_ranges)</code> that could crash <code>/contact</code> SSR on a malformed setting; <code>sitemap.ts</code> only including the first page of blog posts (added <code>getAllPosts()</code> in <code>api.ts</code>, which pages through the 50-per-request cap); unescaped CSV export for subscribers (now RFC-4180 quoted). Also closed dead/half-wired features: Callback Requests had a full backend + admin UI + socket notifications but zero public entry point (added <code>RequestCallbackButton.tsx</code>, a modal on <code>/contact</code>); <code>agency_legal_name</code>/<code>privacy_contact_email</code>/<code>notice_period</code> settings were editable but never rendered anywhere (now shown on the three legal pages); <code>budget_ranges</code> was consumed by the public contact form but had no admin field (added, as a comma-separated input that converts to/from the JSON array the setting stores — converted only on load/save, not per-keystroke, to avoid fighting the user's typing); Twitter/X URL setting had no footer icon (added <code>TwitterIcon</code>); Settings page saves now use <code>Promise.allSettled</code> and report which fields failed instead of failing silently. Mobile got matching attention: every list/detail screen gained proper loading spinners, pull-to-refresh, and distinct "couldn't load" vs "not found" states (previously fetches had no <code>.catch</code>, producing unhandled rejections); the admin quick-view screen now redirects to login on a 401 instead of showing a stale dashboard (the 401 interceptor in <code>api/client.ts</code> now also clears <code>admin_user</code>, not just the token); the blog list gained category filter chips; Home screen no longer flashes "no services" before the fetch resolves; Contact screen now shows email/phone/address from settings; post and case-study detail screens gained a native share button.</li>
+<li><strong>Blog premium overhaul</strong> — fixed a real bug where <code>ContactForm.tsx</code>'s async submit handler read <code>e.currentTarget</code> after an <code>await</code> (React nulls a SyntheticEvent's <code>currentTarget</code> once the handler yields, so the post-await <code>.reset()</code> call threw and silently overwrote a just-succeeded submission with an error state — fixed by capturing the element into a variable before the <code>await</code>); new <code>blog_categories</code> managed list (replacing free-text category entry with an admin-editable dropdown); <code>posts.author_id</code> linking posts to real <code>team</code> members (photo/bio/designation now render on the public post and author card); <code>posts.cover_image_alt</code> for accessibility/SEO; <code>ImageUploadField</code> gained explicit Remove/Replace controls; editor gained text alignment, text color, tables, and YouTube embeds; blog listing gained real pagination (the API already supported <code>page</code>/<code>limit</code>, the frontend just wasn't using it); related posts upgraded from plain text links to image cards; mobile's post detail screen gained a cover image, author avatar, and a related-reading list to match</li>
+<li><strong>Department/permission RBAC</strong> — per-action-per-resource permission model (departments table stores names, permissions table is the full catalog, department_permissions joins them), Super Admin bypass, permissions embedded in the JWT at login, sidebar and ResourceManager controls filtered client-side by <code>hasPermission()</code> while the backend's <code>checkPermission</code> middleware remains the real authority; new <code>AdminAuthContext</code> centralizing admin/session state; new reusable UI kit (<code>components/ui/</code>: Modal, Button, Field, Spinner, EmptyState); docs pages gained "Copy public link" (unauthenticated <code>GET /docs/:type</code> + noindex public page) and "Download as .html" (single doc and all-docs); Vercel build fixed via <code>frontend/.npmrc</code> (<code>legacy-peer-deps=true</code>); SEO pass added <code>metadataBase</code> + explicit canonical URLs on every public route and BreadcrumbList JSON-LD on service/case-study/blog detail pages</li>
+<li><strong>RBAC schema redesign + docs system rework</strong> — permissions moved from one row per resource+action to one row per resource with four <code>can_create</code>/<code>can_read</code>/<code>can_update</code>/<code>can_delete</code> flags on the department grant (matches how <code>ayurvedaeccom</code> and most production admin panels model resource-level ACLs); action vocabulary renamed <code>view</code>→<code>read</code>, <code>edit</code>→<code>update</code> everywhere (backend routes, JWT permission strings, frontend <code>hasPermission()</code> calls); Departments admin UI rebuilt as a proper CRUD matrix (resource rows × 4 action columns, click a column header to toggle it for every resource). Separately, the admin docs (User Manual/Testing/Developer) moved from a DB-backed, rich-text-editable CMS to static code-defined React pages with no edit UI, mirroring <code>ayurvedaeccom</code>'s docs pattern — the <code>docs</code> table, its API routes, and the public unauthenticated doc-sharing page were all removed.</li>
+<li><strong>Docs system (superseded, see above)</strong> — the original in-admin documentation (user manual, testing guide, developer docs) was DB-backed and admin-editable; auto-maintained going forward, until the rework above changed the maintenance model</li>
+<li><strong>Premium blog overhaul</strong> — full-page editor replacing the modal-based one, expanded TipTap toolbar + bubble menu, SEO sidebar with live preview, table of contents, syntax-highlighted code blocks, reading time, share buttons, category/search filtering</li>
+<li><strong>Phase 4</strong> — roles (editor/super_admin), Admins management, automatic audit log, lightweight analytics + page view tracking</li>
+<li><strong>Phase 3</strong> — Socket.io real-time admin notifications, Expo push notifications, hidden mobile admin section</li>
+<li><strong>Phase 2</strong> — runtime-editable theme (Appearance settings), mirrored on mobile via ThemeProvider</li>
+<li><strong>Phase 1</strong> — made every previously-hardcoded thing (nav, homepage stats/logos/why-us, contact form options, legal pages) database-backed and admin-manageable; media library with local-storage upload fallback; TipTap rich text (initial version); toasts; skeletons</li>
+<li><strong>Initial build</strong> — backend API, database schema, admin panel foundation (ResourceManager pattern), public site, mobile app scaffold</li>
+</ul>
+`;

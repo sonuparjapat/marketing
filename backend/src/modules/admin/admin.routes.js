@@ -10,6 +10,6 @@ router.post('/login', authLimiter, ctrl.login);
 router.post('/logout', adminAuth, ctrl.logout);
 router.get('/me', adminAuth, ctrl.me);
 router.get('/stats', adminAuth, ctrl.stats);
-router.post('/upload', adminAuth, checkPermission('media.upload'), ctrl.uploadImage);
+router.post('/upload', adminAuth, checkPermission('media.create'), upload.single('file'), ctrl.uploadImage);
 
 module.exports = router;

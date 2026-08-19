@@ -26,12 +26,24 @@ const login = asyncHandler(async (req, res) => {
   let departmentName = null;
   if (admin.role !== 'super_admin' && admin.department_id) {
     const permResult = await pool.query(
-      `SELECT permissions.key FROM department_permissions
+      `SELECT permissions.resource_key, department_permissions.can_create, department_permissions.can_read,
+              department_permissions.can_update, department_permissions.can_delete
+       FROM department_permissions
        JOIN permissions ON permissions.id = department_permissions.permission_id
        WHERE department_permissions.department_id = $1`,
       [admin.department_id]
     );
-    permissions = permResult.rows.map((r) => r.key);
+    // Flatten each resource's CRUD flags into "resource.action" strings — checkPermission() and
+    // the frontend's hasPermission() both just check this array for a matching string, so the
+    // resource+flags storage shape stays an implementation detail behind the JWT boundary.
+    permissions = permResult.rows.flatMap((r) => {
+      const grants = [];
+      if (r.can_create) grants.push(`${r.resource_key}.create`);
+      if (r.can_read) grants.push(`${r.resource_key}.read`);
+      if (r.can_update) grants.push(`${r.resource_key}.update`);
+      if (r.can_delete) grants.push(`${r.resource_key}.delete`);
+      return grants;
+    });
     const deptResult = await pool.query('SELECT name FROM departments WHERE id = $1', [admin.department_id]);
     departmentName = deptResult.rows[0]?.name || null;
   }

@@ -128,8 +128,12 @@ export function RichTextEditor({
       try {
         const res = await apiClient.post('/admin/upload', form, { headers: { 'Content-Type': 'multipart/form-data' } });
         editor.chain().focus().setImage({ src: res.data.data.url }).run();
-      } catch {
-        alert('Image upload failed — check that file storage is configured.');
+      } catch (err: unknown) {
+        const message =
+          err && typeof err === 'object' && 'response' in err
+            ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
+            : undefined;
+        alert(message || 'Image upload failed — please try again.');
       } finally {
         setUploading(false);
       }

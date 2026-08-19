@@ -7,11 +7,11 @@ publicRouter.get('/', ctrl.listServices);
 publicRouter.get('/:slug', ctrl.getService);
 
 const adminRouter = express.Router();
-adminRouter.get('/', adminAuth, checkPermission('services.view'), ctrl.adminList);
-adminRouter.patch('/reorder', adminAuth, checkPermission('services.edit'), ctrl.reorderServices);
-adminRouter.get('/:id', adminAuth, checkPermission('services.view'), ctrl.adminGetOne);
+adminRouter.get('/', adminAuth, checkPermission('services.read'), ctrl.adminList);
+adminRouter.patch('/reorder', adminAuth, checkPermission('services.update'), ctrl.reorderServices);
+adminRouter.get('/:id', adminAuth, checkPermission('services.read'), ctrl.adminGetOne);
 adminRouter.post('/', adminAuth, checkPermission('services.create'), ctrl.createService);
-adminRouter.put('/:id', adminAuth, checkPermission('services.edit'), ctrl.updateService);
+adminRouter.put('/:id', adminAuth, checkPermission('services.update'), ctrl.updateService);
 adminRouter.delete('/:id', adminAuth, checkPermission('services.delete'), ctrl.removeService);
 
 module.exports = { publicRouter, adminRouter };
