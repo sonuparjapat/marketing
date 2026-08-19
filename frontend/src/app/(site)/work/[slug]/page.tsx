@@ -58,7 +58,7 @@ export default async function CaseStudyDetailPage({ params }: { params: Promise<
         <div className="glass mb-14 grid grid-cols-2 gap-px overflow-hidden rounded-2xl md:grid-cols-4">
           {cs.results_json.map((r) => (
             <div key={r.metric} className="bg-bg/40 p-6 transition-colors hover:bg-bg2/60">
-              <div className="font-serif-italic grad-text text-3xl">{r.value}</div>
+              <div className="font-serif-italic text-accent text-3xl">{r.value}</div>
               <div className="mt-1 text-xs text-faint">{r.metric}{r.label ? `, ${r.label}` : ''}</div>
             </div>
           ))}

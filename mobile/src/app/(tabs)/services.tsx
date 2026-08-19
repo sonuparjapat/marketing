@@ -42,7 +42,7 @@ const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.bg },
     h1: { color: colors.fg, fontSize: 28, fontWeight: '600', marginBottom: 24 },
-    card: { backgroundColor: colors.bg2, borderWidth: 1, borderColor: colors.line, borderRadius: 8, padding: 18, marginBottom: 12 },
+    card: { backgroundColor: colors.bg2, borderWidth: 1, borderColor: colors.lineSoft, borderRadius: 16, padding: 18, marginBottom: 12 },
     cardTitle: { color: colors.fg, fontSize: 16, fontWeight: '600', marginBottom: 6 },
     cardBody: { color: colors.muted, fontSize: 13.5, lineHeight: 19 },
     empty: { color: colors.faint, fontSize: 13, fontStyle: 'italic' },

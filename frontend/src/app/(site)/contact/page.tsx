@@ -49,7 +49,7 @@ export default async function ContactPage() {
         <div className="relative">
           <span className="text-xs uppercase tracking-[0.2em] text-accent">Get in touch</span>
           <h1 className="mt-3 mb-6 font-serif text-4xl font-normal leading-tight md:text-[46px]">
-            Let&apos;s talk <span className="font-serif-italic grad-text">growth</span>.
+            Let&apos;s talk <span className="font-serif-italic text-accent">growth</span>.
           </h1>
           <p className="mb-10 max-w-md text-[15px] leading-relaxed text-muted">
             30 minutes, no deck — just a straight look at what&apos;s leaking in your funnel. Tell us about your

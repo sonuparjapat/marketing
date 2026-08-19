@@ -85,7 +85,7 @@ export default async function HomePage() {
                 <span className="text-xs uppercase tracking-[0.2em] text-accent">Digital Marketing Agency &middot; India</span>
               </div>
               <h1 className="mb-7 max-w-[760px] font-serif text-[40px] font-normal leading-[1.1] md:text-[58px]">
-                We don&apos;t just <span className="font-serif-italic grad-text">market</span> brands.
+                We don&apos;t just <span className="font-serif-italic text-accent">market</span> brands.
                 <br />
                 We&apos;ve built one.
               </h1>
@@ -166,7 +166,7 @@ export default async function HomePage() {
                         <span className="relative inline-flex h-2 w-2 rounded-full bg-accent-2" />
                       </span>
                     </div>
-                    <div className="font-serif-italic grad-text mb-1 text-[46px]">
+                    <div className="font-serif-italic text-accent mb-1 text-[46px]">
                       <CountUp value={featured.results_json[0]?.value || '—'} />
                     </div>
                     <div className="mb-7 text-[13px] text-muted">
@@ -357,7 +357,7 @@ export default async function HomePage() {
                 <div className="relative grid grid-cols-2 gap-px overflow-hidden rounded-xl bg-line-soft">
                   {featured.results_json.slice(0, 4).map((r) => (
                     <div key={r.metric} className="bg-bg p-6 transition-colors hover:bg-bg2">
-                      <div className="font-serif-italic grad-text text-3xl">
+                      <div className="font-serif-italic text-accent text-3xl">
                         <CountUp value={r.value} />
                       </div>
                       <div className="mt-1 text-xs text-faint">{r.metric}{r.label ? `, ${r.label}` : ''}</div>
@@ -379,7 +379,7 @@ export default async function HomePage() {
                   <div className="mb-5 flex gap-6">
                     {cs.results_json.slice(0, 2).map((r) => (
                       <div key={r.metric}>
-                        <div className="font-serif-italic grad-text text-[22px]">
+                        <div className="font-serif-italic text-accent text-[22px]">
                           <CountUp value={r.value} />
                         </div>
                         <div className="text-xs text-faint">{r.metric}</div>

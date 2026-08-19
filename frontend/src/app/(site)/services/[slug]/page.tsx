@@ -107,7 +107,7 @@ export default async function ServiceDetailPage({ params }: { params: Promise<{ 
                   <div className="flex gap-6">
                     {cs.results_json.slice(0, 2).map((r) => (
                       <div key={r.metric}>
-                        <div className="font-serif-italic grad-text text-xl">{r.value}</div>
+                        <div className="font-serif-italic text-accent text-xl">{r.value}</div>
                         <div className="text-xs text-faint">{r.metric}</div>
                       </div>
                     ))}

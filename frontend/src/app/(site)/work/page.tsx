@@ -86,7 +86,7 @@ export default async function WorkPage() {
                   <div className="flex gap-6">
                     {cs.results_json.slice(0, 3).map((r) => (
                       <div key={r.metric}>
-                        <div className="font-serif-italic grad-text text-2xl">{r.value}</div>
+                        <div className="font-serif-italic text-accent text-2xl">{r.value}</div>
                         <div className="text-xs text-faint">{r.metric}</div>
                       </div>
                     ))}

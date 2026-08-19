@@ -38,7 +38,7 @@ export function ContactForm({ services, budgets }: { services: string[]; budgets
   if (status === 'done') {
     return (
       <div className="rounded-xl border border-accent/30 bg-accent/5 p-8">
-        <p className="font-serif-italic grad-text text-xl">Thanks — message received.</p>
+        <p className="font-serif-italic text-accent text-xl">Thanks — message received.</p>
         <p className="mt-2 text-sm text-muted">We&apos;ll get back to you within 24 hours.</p>
       </div>
     );
