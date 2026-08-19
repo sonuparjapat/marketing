@@ -33,6 +33,7 @@ const admins = require('./modules/admins/admins.routes');
 const adminLogs = require('./modules/adminLogs/adminLogs.routes');
 const analytics = require('./modules/analytics/analytics.routes');
 const tracking = require('./modules/tracking/tracking.routes');
+const docs = require('./modules/docs/docs.routes');
 
 const app = express();
 
@@ -106,6 +107,7 @@ app.use('/api/admin/push-tokens', pushTokens.adminRouter);
 app.use('/api/admin/admins', admins.adminRouter);
 app.use('/api/admin/logs', adminLogs.adminRouter);
 app.use('/api/admin/analytics', analytics.adminRouter);
+app.use('/api/admin/docs', docs.adminRouter);
 
 app.use(notFound);
 app.use(errorHandler);

@@ -260,6 +260,16 @@ async function initDB() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_admin_logs_created_at ON admin_logs(created_at DESC);`);
 
     await client.query(`
+      CREATE TABLE IF NOT EXISTS docs (
+        id           SERIAL PRIMARY KEY,
+        doc_type     VARCHAR(30) UNIQUE NOT NULL,
+        title        VARCHAR(200) NOT NULL,
+        content      TEXT DEFAULT '',
+        updated_at   TIMESTAMP DEFAULT NOW()
+      );
+    `);
+
+    await client.query(`
       CREATE TABLE IF NOT EXISTS page_views (
         id           SERIAL PRIMARY KEY,
         path         VARCHAR(300) NOT NULL,
@@ -286,6 +296,7 @@ async function initDB() {
   await seedDefaultPages();
   await seedDefaultHomepageSections();
   await seedDefaultNavLinks();
+  await seedDefaultDocs();
 }
 
 async function seedAdmin() {
@@ -441,6 +452,21 @@ async function seedDefaultNavLinks() {
        VALUES ($1, $2, 'footer', $3, TRUE)
        ON CONFLICT (label, location) DO NOTHING`,
       [label, href, i]
+    );
+  }
+}
+
+async function seedDefaultDocs() {
+  const docs = [
+    { doc_type: 'user-manual', title: 'User Manual' },
+    { doc_type: 'testing', title: 'Testing Guide' },
+    { doc_type: 'developer', title: 'Developer Docs' },
+  ];
+  for (const d of docs) {
+    await pool.query(
+      `INSERT INTO docs (doc_type, title, content) VALUES ($1, $2, '')
+       ON CONFLICT (doc_type) DO NOTHING`,
+      [d.doc_type, d.title]
     );
   }
 }
