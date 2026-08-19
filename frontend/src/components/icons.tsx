@@ -128,6 +128,14 @@ export function YoutubeIcon({ className, size }: IconProps) {
   );
 }
 
+export function TwitterIcon({ className, size }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className}>
+      <path d="M18.9 2H22l-7.2 8.2L23.3 22H16.7l-5.2-6.8L5.6 22H2.5l7.7-8.8L1.7 2h6.8l4.7 6.2zm-1.2 18h1.7L7.4 4H5.6z" />
+    </svg>
+  );
+}
+
 export function WhatsappIcon({ className, size = 26 }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className}>

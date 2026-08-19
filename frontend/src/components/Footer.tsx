@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import type { PublicSettings, NavLink } from '@/lib/api';
 import { getServices } from '@/lib/api';
-import { InstagramIcon, LinkedinIcon, YoutubeIcon } from './icons';
+import { InstagramIcon, LinkedinIcon, YoutubeIcon, TwitterIcon } from './icons';
 import { NewsletterForm } from './NewsletterForm';
 
 const FALLBACK_FOOTER_NAV: Pick<NavLink, 'href' | 'label'>[] = [
@@ -76,6 +76,11 @@ export async function Footer({
             {settings.youtube_url && (
               <a href={settings.youtube_url} className="flex h-9 w-9 items-center justify-center rounded-full border border-line text-muted">
                 <YoutubeIcon size={16} />
+              </a>
+            )}
+            {settings.twitter_url && (
+              <a href={settings.twitter_url} className="flex h-9 w-9 items-center justify-center rounded-full border border-line text-muted">
+                <TwitterIcon size={16} />
               </a>
             )}
           </div>

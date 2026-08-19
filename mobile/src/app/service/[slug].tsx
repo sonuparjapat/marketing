@@ -14,11 +14,13 @@ export default function ServiceDetailScreen() {
   const [service, setService] = useState<ServiceDetail | null>(null);
   const [faqs, setFaqs] = useState<Faq[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     if (!slug) return;
     getService(slug)
       .then(setService)
+      .catch(() => setError(true))
       .finally(() => setLoading(false));
     getFaqs(slug)
       .then((list) => (list.length ? list : getFaqs('general')))
@@ -37,7 +39,7 @@ export default function ServiceDetailScreen() {
   if (!service) {
     return (
       <View style={[styles.screen, { justifyContent: 'center', alignItems: 'center' }]}>
-        <Text style={{ color: colors.muted }}>Service not found.</Text>
+        <Text style={{ color: colors.muted }}>{error ? "Couldn't load this service — check your connection." : 'Service not found.'}</Text>
       </View>
     );
   }

@@ -124,6 +124,19 @@ export const getPosts = (query = '') =>
     limit: 9,
   }));
 export const getPost = (slug: string) => fetchApi<PostDetail>(`/posts/${slug}`, 0).catch(() => null);
+
+/** Every published post, paginating through the API's 50-per-page cap — for the sitemap, which needs the full set. */
+export async function getAllPosts(): Promise<Post[]> {
+  const all: Post[] = [];
+  let page = 1;
+  for (;;) {
+    const res = await getPosts(`?page=${page}&limit=50`);
+    all.push(...res.items);
+    if (all.length >= res.total || !res.items.length) break;
+    page += 1;
+  }
+  return all;
+}
 export const getBlogCategories = () => fetchApi<BlogCategory[]>('/blog-categories').catch(() => []);
 
 export const getTeam = () => fetchApi<TeamMember[]>('/team').catch(() => []);

@@ -25,6 +25,7 @@ const MODULE_LABELS: Record<string, string> = {
   callbacks: 'Callbacks',
   subscribers: 'Subscribers',
   posts: 'Blog Posts',
+  blog_categories: 'Blog Categories',
   case_studies: 'Case Studies',
   services: 'Services',
   testimonials: 'Testimonials',

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { getPublicSettings, getServices } from '@/lib/api';
 import { ContactForm } from '@/components/ContactForm';
+import { RequestCallbackButton } from '@/components/RequestCallbackButton';
 
 export const metadata: Metadata = {
   title: 'Contact',
@@ -10,10 +11,36 @@ export const metadata: Metadata = {
 
 export default async function ContactPage() {
   const [settings, services] = await Promise.all([getPublicSettings(), getServices()]);
-  const budgets: string[] = settings.budget_ranges ? JSON.parse(settings.budget_ranges) : [];
+  let budgets: string[] = [];
+  if (settings.budget_ranges) {
+    try {
+      const parsed = JSON.parse(settings.budget_ranges);
+      if (Array.isArray(parsed)) budgets = parsed;
+    } catch {
+      // Malformed setting — fall back to no budget options rather than crashing the page.
+    }
+  }
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'ContactPage',
+    name: `Contact ${settings.agency_name || 'Anvil'}`,
+    url: `${siteUrl}/contact`,
+  };
+  const breadcrumbJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: siteUrl },
+      { '@type': 'ListItem', position: 2, name: 'Contact', item: `${siteUrl}/contact` },
+    ],
+  };
 
   return (
     <main className="px-6 py-24 md:px-16">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
       <div className="mx-auto grid max-w-[1312px] gap-16 md:grid-cols-[1fr_1.3fr]">
         <div>
           <span className="text-xs uppercase tracking-[0.2em] text-accent">Get in touch</span>
@@ -40,6 +67,10 @@ export default async function ContactPage() {
                 <div>{settings.address}</div>
               </div>
             )}
+          </div>
+
+          <div className="mt-8">
+            <RequestCallbackButton />
           </div>
         </div>
 

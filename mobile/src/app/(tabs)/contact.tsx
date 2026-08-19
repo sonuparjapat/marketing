@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Text, TextInput, Pressable, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { Text, TextInput, Pressable, StyleSheet, ScrollView, ActivityIndicator, Alert, Linking } from 'react-native';
 import { useTheme, spacing, type ThemeColors } from '../../context/theme';
 import { submitLead, getServices, getPublicSettings } from '../../api/services';
 import { SimpleSelect } from '../../components/SimpleSelect';
@@ -15,6 +15,7 @@ export default function ContactScreen() {
   const [budget, setBudget] = useState('');
   const [serviceOptions, setServiceOptions] = useState<string[]>([]);
   const [budgetOptions, setBudgetOptions] = useState<string[]>([]);
+  const [contactInfo, setContactInfo] = useState<{ email?: string; phone?: string; address?: string }>({});
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -23,6 +24,7 @@ export default function ContactScreen() {
       .catch(() => {});
     getPublicSettings()
       .then((settings) => {
+        setContactInfo({ email: settings.email, phone: settings.phone, address: settings.address });
         if (settings.budget_ranges) {
           try {
             setBudgetOptions(JSON.parse(settings.budget_ranges));
@@ -60,6 +62,29 @@ export default function ContactScreen() {
     <ScrollView style={styles.screen} contentContainerStyle={{ padding: spacing.lg, paddingTop: 64 }}>
       <Text style={styles.h1}>Let's talk growth</Text>
       <Text style={styles.sub}>30 minutes, no deck — just a straight look at what's leaking in your funnel.</Text>
+
+      {(contactInfo.email || contactInfo.phone || contactInfo.address) && (
+        <>
+          {contactInfo.email && (
+            <Pressable onPress={() => Linking.openURL(`mailto:${contactInfo.email}`)} style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Email</Text>
+              <Text style={styles.infoValue}>{contactInfo.email}</Text>
+            </Pressable>
+          )}
+          {contactInfo.phone && (
+            <Pressable onPress={() => Linking.openURL(`tel:${contactInfo.phone}`)} style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Phone</Text>
+              <Text style={styles.infoValue}>{contactInfo.phone}</Text>
+            </Pressable>
+          )}
+          {contactInfo.address && (
+            <>
+              <Text style={styles.infoLabel}>Office</Text>
+              <Text style={[styles.infoValue, { marginBottom: 20 }]}>{contactInfo.address}</Text>
+            </>
+          )}
+        </>
+      )}
 
       <Text style={styles.label}>Name</Text>
       <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="Your name" placeholderTextColor={colors.faint} />
@@ -107,7 +132,10 @@ const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.bg },
     h1: { color: colors.fg, fontSize: 28, fontWeight: '600', marginBottom: 8 },
-    sub: { color: colors.muted, fontSize: 14, lineHeight: 20, marginBottom: 28 },
+    sub: { color: colors.muted, fontSize: 14, lineHeight: 20, marginBottom: 20 },
+    infoRow: { marginBottom: 12 },
+    infoLabel: { color: colors.faint, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
+    infoValue: { color: colors.fg, fontSize: 14.5 },
     label: { color: colors.muted, fontSize: 12, letterSpacing: 0.5, marginBottom: 8, marginTop: 16, textTransform: 'uppercase' },
     input: { backgroundColor: colors.bg2, borderWidth: 1, borderColor: colors.line, borderRadius: 6, padding: 14, color: colors.fg, fontSize: 15 },
     cta: { backgroundColor: colors.accent, paddingVertical: 16, borderRadius: 4, alignItems: 'center', marginTop: 32 },

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Text, FlatList, StyleSheet, Pressable } from 'react-native';
+import { Text, FlatList, StyleSheet, Pressable, ActivityIndicator, RefreshControl } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useTheme, spacing, type ThemeColors } from '../../context/theme';
@@ -9,7 +9,7 @@ export default function ServicesScreen() {
   const colors = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const router = useRouter();
-  const { data, isLoading } = useQuery({ queryKey: ['services'], queryFn: getServices });
+  const { data, isLoading, isError, refetch, isRefetching } = useQuery({ queryKey: ['services'], queryFn: getServices });
 
   return (
     <FlatList
@@ -17,6 +17,7 @@ export default function ServicesScreen() {
       data={data || []}
       keyExtractor={(item) => String(item.id)}
       contentContainerStyle={{ padding: spacing.lg, paddingTop: 64 }}
+      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.accent} />}
       ListHeaderComponent={<Text style={styles.h1}>Services</Text>}
       renderItem={({ item }) => (
         <Pressable style={styles.card} onPress={() => router.push(`/service/${item.slug}`)}>
@@ -24,7 +25,15 @@ export default function ServicesScreen() {
           <Text style={styles.cardBody}>{item.short_description}</Text>
         </Pressable>
       )}
-      ListEmptyComponent={!isLoading ? <Text style={styles.empty}>No services published yet.</Text> : null}
+      ListEmptyComponent={
+        isLoading ? (
+          <ActivityIndicator color={colors.accent} style={{ marginTop: 24 }} />
+        ) : isError ? (
+          <Text style={styles.empty}>Couldn't load services — pull down to try again.</Text>
+        ) : (
+          <Text style={styles.empty}>No services published yet.</Text>
+        )
+      }
     />
   );
 }

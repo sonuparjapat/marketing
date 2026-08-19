@@ -2,14 +2,16 @@
 
 import { useEffect, useState } from 'react';
 import apiClient from '@/lib/apiClient';
+import { useToast } from '@/components/Toast';
 
-const FIELDS: { key: string; label: string; group: string; type?: 'text' | 'color' }[] = [
+const FIELDS: { key: string; label: string; group: string; type?: 'text' | 'color' | 'string-array' }[] = [
   { key: 'agency_name', label: 'Agency name', group: 'General' },
   { key: 'tagline', label: 'Tagline', group: 'General' },
   { key: 'phone', label: 'Phone', group: 'General' },
   { key: 'email', label: 'Email', group: 'General' },
   { key: 'address', label: 'Address', group: 'General' },
   { key: 'whatsapp_number', label: 'WhatsApp number (with country code, digits only)', group: 'General' },
+  { key: 'budget_ranges', label: 'Contact form budget options (comma-separated)', group: 'General', type: 'string-array' },
   { key: 'primary_color', label: 'Background color', group: 'Appearance', type: 'color' },
   { key: 'accent_color', label: 'Accent color', group: 'Appearance', type: 'color' },
   { key: 'instagram_url', label: 'Instagram URL', group: 'Social' },
@@ -26,18 +28,41 @@ const FIELDS: { key: string; label: string; group: string; type?: 'text' | 'colo
 
 const isHex = (v: string) => /^#[0-9a-fA-F]{6}$/.test(v);
 
+function jsonToCsv(raw: string | undefined) {
+  if (!raw) return '';
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.join(', ') : raw;
+  } catch {
+    return raw;
+  }
+}
+
+function csvToJson(csv: string) {
+  const items = csv
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return JSON.stringify(items);
+}
+
+const STRING_ARRAY_KEYS = new Set(FIELDS.filter((f) => f.type === 'string-array').map((f) => f.key));
+
 export default function AdminSettingsPage() {
   const [values, setValues] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const { show } = useToast();
 
   useEffect(() => {
     (async () => {
       try {
         const res = await apiClient.get('/admin/settings');
         const map: Record<string, string> = {};
-        for (const row of res.data.data) map[row.key] = row.value || '';
+        for (const row of res.data.data) {
+          map[row.key] = STRING_ARRAY_KEYS.has(row.key) ? jsonToCsv(row.value) : row.value || '';
+        }
         setValues(map);
       } finally {
         setLoading(false);
@@ -48,13 +73,22 @@ export default function AdminSettingsPage() {
   const onSave = async () => {
     setSaving(true);
     setSaved(false);
-    try {
-      await Promise.all(
-        FIELDS.map((f) => apiClient.put('/admin/settings', { key: f.key, value: values[f.key] || '' }))
-      );
+    const results = await Promise.allSettled(
+      FIELDS.map((f) => {
+        const raw = values[f.key] || '';
+        const value = STRING_ARRAY_KEYS.has(f.key) ? csvToJson(raw) : raw;
+        return apiClient.put('/admin/settings', { key: f.key, value });
+      })
+    );
+    setSaving(false);
+    const failed = results
+      .map((r, i) => (r.status === 'rejected' ? FIELDS[i].label : null))
+      .filter((label): label is string => label !== null);
+    if (failed.length) {
+      show(`Failed to save: ${failed.join(', ')}`, 'error');
+    } else {
       setSaved(true);
-    } finally {
-      setSaving(false);
+      show('Settings saved.');
     }
   };
 
@@ -93,6 +127,14 @@ export default function AdminSettingsPage() {
                       className="flex-1 border border-line bg-bg2 px-3.5 py-2.5 text-sm focus:border-accent focus:outline-none"
                     />
                   </div>
+                ) : f.type === 'string-array' ? (
+                  <input
+                    type="text"
+                    value={values[f.key] || ''}
+                    onChange={(e) => setValues((p) => ({ ...p, [f.key]: e.target.value }))}
+                    placeholder="Under ₹50k/month, ₹50k-1L/month, ₹1L+/month"
+                    className="w-full border border-line bg-bg2 px-3.5 py-2.5 text-sm placeholder:text-faint focus:border-accent focus:outline-none"
+                  />
                 ) : (
                   <input
                     type="text"

@@ -4,11 +4,12 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import apiClient from '@/lib/apiClient';
 import { useAdminSocket } from '@/lib/useAdminSocket';
+import { useAdminAuth } from '@/context/AdminAuthContext';
 import { Skeleton } from '@/components/Skeleton';
 
 type Stats = {
-  leadsToday: number;
-  leadsTotal: number;
+  leadsToday: number | null;
+  leadsTotal: number | null;
   activeSubscribers: number;
   blogViewsThisMonth: number;
   pendingCallbacks: number;
@@ -17,6 +18,8 @@ type Stats = {
 
 export default function AdminDashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null);
+  const { hasPermission } = useAdminAuth();
+  const canViewLeads = hasPermission('leads.view');
 
   const load = useCallback(() => {
     apiClient.get('/admin/stats').then((res) => setStats(res.data.data));
@@ -30,8 +33,12 @@ export default function AdminDashboardPage() {
 
   const cards = stats
     ? [
-        { label: "Today's leads", value: stats.leadsToday },
-        { label: 'Total leads', value: stats.leadsTotal },
+        ...(canViewLeads
+          ? [
+              { label: "Today's leads", value: stats.leadsToday },
+              { label: 'Total leads', value: stats.leadsTotal },
+            ]
+          : []),
         { label: 'Active subscribers', value: stats.activeSubscribers },
         { label: 'Blog views this month', value: stats.blogViewsThisMonth },
         { label: 'Pending callbacks', value: stats.pendingCallbacks },
@@ -58,33 +65,35 @@ export default function AdminDashboardPage() {
             ))}
       </div>
 
-      <div className="border border-line">
-        <div className="flex items-center justify-between border-b border-line bg-bg2 px-5 py-3">
-          <h2 className="text-sm font-semibold">Recent leads</h2>
-          <Link href="/admin/leads" className="text-xs text-accent hover:opacity-80">
-            View all
-          </Link>
+      {canViewLeads && (
+        <div className="border border-line">
+          <div className="flex items-center justify-between border-b border-line bg-bg2 px-5 py-3">
+            <h2 className="text-sm font-semibold">Recent leads</h2>
+            <Link href="/admin/leads" className="text-xs text-accent hover:opacity-80">
+              View all
+            </Link>
+          </div>
+          <table className="w-full text-sm">
+            <tbody>
+              {stats?.recentLeads.map((l) => (
+                <tr key={l.id} className="border-b border-line last:border-0">
+                  <td className="px-5 py-3 font-medium">{l.name}</td>
+                  <td className="px-5 py-3 text-muted">{l.email}</td>
+                  <td className="px-5 py-3 text-muted">{l.status}</td>
+                  <td className="px-5 py-3 text-muted">{new Date(l.created_at).toLocaleDateString()}</td>
+                </tr>
+              ))}
+              {stats && !stats.recentLeads.length && (
+                <tr>
+                  <td className="px-5 py-8 text-center text-faint" colSpan={4}>
+                    No leads yet.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
-        <table className="w-full text-sm">
-          <tbody>
-            {stats?.recentLeads.map((l) => (
-              <tr key={l.id} className="border-b border-line last:border-0">
-                <td className="px-5 py-3 font-medium">{l.name}</td>
-                <td className="px-5 py-3 text-muted">{l.email}</td>
-                <td className="px-5 py-3 text-muted">{l.status}</td>
-                <td className="px-5 py-3 text-muted">{new Date(l.created_at).toLocaleDateString()}</td>
-              </tr>
-            ))}
-            {stats && !stats.recentLeads.length && (
-              <tr>
-                <td className="px-5 py-8 text-center text-faint" colSpan={4}>
-                  No leads yet.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      )}
     </div>
   );
 }

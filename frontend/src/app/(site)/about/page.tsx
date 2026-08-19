@@ -15,9 +15,27 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function AboutPage() {
   const [team, page, settings] = await Promise.all([getTeam(), getPage('about'), getPublicSettings()]);
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'AboutPage',
+    name: `About ${settings.agency_name || 'Anvil'}`,
+    url: `${siteUrl}/about`,
+  };
+  const breadcrumbJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: siteUrl },
+      { '@type': 'ListItem', position: 2, name: 'About', item: `${siteUrl}/about` },
+    ],
+  };
 
   return (
     <main>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
       <section className="border-b border-line px-6 py-24 md:px-16">
         <div className="mx-auto max-w-[900px]">
           <span className="text-xs uppercase tracking-[0.2em] text-accent">About {settings.agency_name || 'Anvil'}</span>

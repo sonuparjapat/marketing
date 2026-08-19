@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
-import { getCaseStudy } from '@/lib/api';
+import { getCaseStudy, getPublicSettings } from '@/lib/api';
 import { ArrowRightIcon } from '@/components/icons';
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
@@ -18,8 +18,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function CaseStudyDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const cs = await getCaseStudy(slug);
+  const [cs, settings] = await Promise.all([getCaseStudy(slug), getPublicSettings()]);
   if (!cs) notFound();
+  const agencyName = settings.agency_name || 'Anvil';
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
   const breadcrumbJsonLd = {
@@ -42,7 +43,7 @@ export default async function CaseStudyDetailPage({ params }: { params: Promise<
 
         {cs.is_featured && (
           <span className="mb-5 inline-block bg-accent px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-bg">
-            Built &amp; owned by Anvil
+            Built &amp; owned by {agencyName}
           </span>
         )}
         <span className="block text-[11px] uppercase tracking-wider text-faint">{cs.client_industry}</span>

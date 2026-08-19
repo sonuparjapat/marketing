@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { View, Text, Image, ScrollView, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, Image, ScrollView, StyleSheet, Pressable, ActivityIndicator, Share } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, spacing, type ThemeColors } from '../../context/theme';
 import { getPost, PostDetail } from '../../api/services';
+
+const SITE_URL = process.env.EXPO_PUBLIC_SITE_URL || 'http://localhost:3000';
 
 function stripHtml(html: string) {
   return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
@@ -16,11 +18,13 @@ export default function PostDetailScreen() {
   const router = useRouter();
   const [post, setPost] = useState<PostDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     if (!slug) return;
     getPost(slug)
       .then(setPost)
+      .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, [slug]);
 
@@ -35,17 +39,22 @@ export default function PostDetailScreen() {
   if (!post) {
     return (
       <View style={[styles.screen, { justifyContent: 'center', alignItems: 'center' }]}>
-        <Text style={{ color: colors.muted }}>Post not found.</Text>
+        <Text style={{ color: colors.muted }}>{error ? "Couldn't load this post — check your connection." : 'Post not found.'}</Text>
       </View>
     );
   }
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={{ padding: spacing.lg, paddingTop: 60 }}>
-      <Pressable onPress={() => router.back()} style={styles.back}>
-        <Ionicons name="chevron-back" size={18} color={colors.muted} />
-        <Text style={styles.backText}>Blog</Text>
-      </Pressable>
+      <View style={styles.topRow}>
+        <Pressable onPress={() => router.back()} style={styles.back}>
+          <Ionicons name="chevron-back" size={18} color={colors.muted} />
+          <Text style={styles.backText}>Blog</Text>
+        </Pressable>
+        <Pressable onPress={() => Share.share({ message: `${post.title} — ${SITE_URL}/blog/${post.slug}` })} hitSlop={8}>
+          <Ionicons name="share-outline" size={20} color={colors.muted} />
+        </Pressable>
+      </View>
 
       <Text style={styles.category}>{post.category}</Text>
       <Text style={styles.h1}>{post.title}</Text>
@@ -86,8 +95,9 @@ export default function PostDetailScreen() {
 const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.bg },
-    back: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
+    back: { flexDirection: 'row', alignItems: 'center' },
     backText: { color: colors.muted, fontSize: 14, marginLeft: 4 },
+    topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
     category: { color: colors.accent, fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 10 },
     h1: { color: colors.fg, fontSize: 24, fontWeight: '600', marginBottom: 14 },
     metaRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },

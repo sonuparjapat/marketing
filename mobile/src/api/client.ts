@@ -17,7 +17,7 @@ api.interceptors.response.use(
   (res) => res,
   async (error) => {
     if (error.response?.status === 401) {
-      await AsyncStorage.removeItem('admin_token');
+      await AsyncStorage.multiRemove(['admin_token', 'admin_user']);
     }
     return Promise.reject(error);
   }

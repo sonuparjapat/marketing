@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Text, FlatList, StyleSheet, Pressable, View } from 'react-native';
+import { Text, FlatList, StyleSheet, Pressable, View, ActivityIndicator, RefreshControl } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useTheme, spacing, type ThemeColors } from '../../context/theme';
@@ -9,7 +9,7 @@ export default function WorkScreen() {
   const colors = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const router = useRouter();
-  const { data, isLoading } = useQuery({ queryKey: ['case-studies'], queryFn: getCaseStudies });
+  const { data, isLoading, isError, refetch, isRefetching } = useQuery({ queryKey: ['case-studies'], queryFn: getCaseStudies });
 
   return (
     <FlatList
@@ -17,6 +17,7 @@ export default function WorkScreen() {
       data={data || []}
       keyExtractor={(item) => String(item.id)}
       contentContainerStyle={{ padding: spacing.lg, paddingTop: 64 }}
+      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.accent} />}
       ListHeaderComponent={<Text style={styles.h1}>Our Work</Text>}
       renderItem={({ item }) => (
         <Pressable style={styles.card} onPress={() => router.push(`/work/${item.slug}`)}>
@@ -33,7 +34,15 @@ export default function WorkScreen() {
           </View>
         </Pressable>
       )}
-      ListEmptyComponent={!isLoading ? <Text style={styles.empty}>No case studies published yet.</Text> : null}
+      ListEmptyComponent={
+        isLoading ? (
+          <ActivityIndicator color={colors.accent} style={{ marginTop: 24 }} />
+        ) : isError ? (
+          <Text style={styles.empty}>Couldn't load case studies — pull down to try again.</Text>
+        ) : (
+          <Text style={styles.empty}>No case studies published yet.</Text>
+        )
+      }
     />
   );
 }

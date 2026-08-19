@@ -1,22 +1,41 @@
 import { useMemo } from 'react';
-import { Text, ScrollView, StyleSheet, Pressable } from 'react-native';
+import { Text, ScrollView, StyleSheet, Pressable, ActivityIndicator, RefreshControl } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'expo-router';
 import { useTheme, spacing, type ThemeColors } from '../../context/theme';
-import { getServices, getCaseStudies } from '../../api/services';
+import { getServices, getCaseStudies, getPublicSettings } from '../../api/services';
 
 export default function HomeScreen() {
   const colors = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { data: services } = useQuery({ queryKey: ['services'], queryFn: getServices });
-  const { data: caseStudies } = useQuery({ queryKey: ['case-studies'], queryFn: getCaseStudies });
+  const {
+    data: services,
+    isLoading: servicesLoading,
+    isError: servicesError,
+  } = useQuery({ queryKey: ['services'], queryFn: getServices });
+  const {
+    data: caseStudies,
+    isLoading: caseStudiesLoading,
+    isError: caseStudiesError,
+  } = useQuery({ queryKey: ['case-studies'], queryFn: getCaseStudies });
+  const { data: settings, refetch, isRefetching } = useQuery({ queryKey: ['settings'], queryFn: getPublicSettings });
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={{ padding: spacing.lg, paddingTop: 64 }}>
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={{ padding: spacing.lg, paddingTop: 64 }}
+      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.accent} />}
+    >
       <Text style={styles.eyebrow}>DIGITAL MARKETING AGENCY · INDIA</Text>
       <Text style={styles.h1}>
-        We don't just <Text style={{ color: colors.accent, fontStyle: 'italic' }}>market</Text> brands. We've built
-        one.
+        {settings?.tagline ? (
+          settings.tagline
+        ) : (
+          <>
+            We don't just <Text style={{ color: colors.accent, fontStyle: 'italic' }}>market</Text> brands. We've
+            built one.
+          </>
+        )}
       </Text>
       <Text style={styles.sub}>
         A performance-driven agency for D2C & SME brands — every strategy we sell has already been tested on our own
@@ -30,27 +49,47 @@ export default function HomeScreen() {
       </Link>
 
       <Text style={styles.sectionTitle}>What we do</Text>
-      {services?.slice(0, 4).map((s) => (
-        <Link key={s.id} href={`/service/${s.slug}`} asChild>
-          <Pressable style={styles.card}>
-            <Text style={styles.cardTitle}>{s.title}</Text>
-            <Text style={styles.cardBody}>{s.short_description}</Text>
-          </Pressable>
-        </Link>
-      ))}
-      {!services?.length && <Text style={styles.empty}>Services will appear here once published from the admin panel.</Text>}
+      {servicesLoading ? (
+        <ActivityIndicator color={colors.accent} style={{ marginBottom: 24 }} />
+      ) : (
+        <>
+          {services?.slice(0, 4).map((s) => (
+            <Link key={s.id} href={`/service/${s.slug}`} asChild>
+              <Pressable style={styles.card}>
+                <Text style={styles.cardTitle}>{s.title}</Text>
+                <Text style={styles.cardBody}>{s.short_description}</Text>
+              </Pressable>
+            </Link>
+          ))}
+          {!services?.length && (
+            <Text style={styles.empty}>
+              {servicesError ? "Couldn't load services — pull down to try again." : 'Services will appear here once published from the admin panel.'}
+            </Text>
+          )}
+        </>
+      )}
 
       <Text style={styles.sectionTitle}>Selected work</Text>
-      {caseStudies?.slice(0, 2).map((c) => (
-        <Link key={c.id} href={`/work/${c.slug}`} asChild>
-          <Pressable style={styles.card}>
-            {c.is_featured && <Text style={styles.badge}>BUILT & OWNED BY US</Text>}
-            <Text style={styles.cardTitle}>{c.title}</Text>
-            <Text style={styles.cardBody}>{c.client_industry}</Text>
-          </Pressable>
-        </Link>
-      ))}
-      {!caseStudies?.length && <Text style={styles.empty}>Case studies will appear here once published.</Text>}
+      {caseStudiesLoading ? (
+        <ActivityIndicator color={colors.accent} style={{ marginBottom: 24 }} />
+      ) : (
+        <>
+          {caseStudies?.slice(0, 2).map((c) => (
+            <Link key={c.id} href={`/work/${c.slug}`} asChild>
+              <Pressable style={styles.card}>
+                {c.is_featured && <Text style={styles.badge}>BUILT & OWNED BY US</Text>}
+                <Text style={styles.cardTitle}>{c.title}</Text>
+                <Text style={styles.cardBody}>{c.client_industry}</Text>
+              </Pressable>
+            </Link>
+          ))}
+          {!caseStudies?.length && (
+            <Text style={styles.empty}>
+              {caseStudiesError ? "Couldn't load case studies — pull down to try again." : 'Case studies will appear here once published.'}
+            </Text>
+          )}
+        </>
+      )}
 
       <Link href="/admin/login" asChild>
         <Pressable style={{ marginTop: 40, alignItems: 'center' }}>

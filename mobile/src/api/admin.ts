@@ -29,8 +29,8 @@ export const getAdminStats = () =>
     .get<{
       success: true;
       data: {
-        leadsToday: number;
-        leadsTotal: number;
+        leadsToday: number | null;
+        leadsTotal: number | null;
         pendingCallbacks: number;
         recentLeads: { id: number; name: string; email: string; status: string; created_at: string }[];
       };

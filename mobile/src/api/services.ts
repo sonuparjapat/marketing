@@ -68,8 +68,16 @@ export const getCaseStudies = () =>
 export const getCaseStudy = (slug: string) =>
   api.get<{ success: true; data: CaseStudyDetail }>(`/case-studies/${slug}`).then((r) => r.data.data);
 
-export const getPosts = () =>
-  api.get<{ success: true; data: { items: Post[]; total: number } }>('/posts').then((r) => r.data.data);
+export const getPosts = (category?: string) =>
+  api
+    .get<{ success: true; data: { items: Post[]; total: number } }>(
+      `/posts${category ? `?category=${encodeURIComponent(category)}` : ''}`
+    )
+    .then((r) => r.data.data);
+
+export type BlogCategory = { id: number; name: string; slug: string };
+export const getBlogCategories = () =>
+  api.get<{ success: true; data: BlogCategory[] }>('/blog-categories').then((r) => r.data.data);
 export const getPost = (slug: string) =>
   api.get<{ success: true; data: PostDetail }>(`/posts/${slug}`).then((r) => r.data.data);
 

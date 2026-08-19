@@ -82,23 +82,37 @@ const me = asyncHandler(async (req, res) => {
 });
 
 const stats = asyncHandler(async (req, res) => {
-  const [leadsToday, leadsTotal, subscribers, postViews, pendingCallbacks] = await Promise.all([
-    pool.query("SELECT COUNT(*)::int AS count FROM leads WHERE created_at >= CURRENT_DATE"),
-    pool.query('SELECT COUNT(*)::int AS count FROM leads'),
+  // The dashboard is reachable by every admin, but lead records carry PII (name/email) — only
+  // include them for admins who actually hold leads.view, rather than gating the whole endpoint.
+  const canViewLeads = req.admin.role === 'super_admin' || (req.admin.permissions || []).includes('leads.view');
+
+  const [subscribers, postViews, pendingCallbacks] = await Promise.all([
     pool.query('SELECT COUNT(*)::int AS count FROM subscribers WHERE is_active = TRUE'),
     pool.query("SELECT COALESCE(SUM(views),0)::int AS total FROM posts WHERE created_at >= date_trunc('month', CURRENT_DATE)"),
     pool.query("SELECT COUNT(*)::int AS count FROM callbacks WHERE status = 'pending'"),
   ]);
 
-  const recentLeads = await pool.query('SELECT * FROM leads ORDER BY created_at DESC LIMIT 5');
+  let leadsToday = null;
+  let leadsTotal = null;
+  let recentLeads = [];
+  if (canViewLeads) {
+    const [today, total, recent] = await Promise.all([
+      pool.query("SELECT COUNT(*)::int AS count FROM leads WHERE created_at >= CURRENT_DATE"),
+      pool.query('SELECT COUNT(*)::int AS count FROM leads'),
+      pool.query('SELECT * FROM leads ORDER BY created_at DESC LIMIT 5'),
+    ]);
+    leadsToday = today.rows[0].count;
+    leadsTotal = total.rows[0].count;
+    recentLeads = recent.rows;
+  }
 
   ok(res, {
-    leadsToday: leadsToday.rows[0].count,
-    leadsTotal: leadsTotal.rows[0].count,
+    leadsToday,
+    leadsTotal,
     activeSubscribers: subscribers.rows[0].count,
     blogViewsThisMonth: postViews.rows[0].total,
     pendingCallbacks: pendingCallbacks.rows[0].count,
-    recentLeads: recentLeads.rows,
+    recentLeads,
   });
 });
 

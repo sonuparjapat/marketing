@@ -67,7 +67,7 @@ export function PostEditor({ postId }: { postId?: number }) {
   const [guestAuthor, setGuestAuthor] = useState(false);
 
   useEffect(() => {
-    apiClient.get('/admin/blog-categories').then((res) => setCategories(res.data.data));
+    apiClient.get('/admin/blog-categories').then((res) => setCategories(res.data.data.items));
     apiClient.get('/admin/team', { params: { limit: 100 } }).then((res) => setTeam(res.data.data.items));
   }, []);
 

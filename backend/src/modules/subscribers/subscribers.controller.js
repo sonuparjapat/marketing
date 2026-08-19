@@ -36,11 +36,17 @@ const listSubscribers = asyncHandler(async (req, res) => {
   ok(res, { items: dataResult.rows, page, limit, total: totalResult.rows[0].count });
 });
 
+// Quotes a CSV field and escapes embedded quotes — RFC 4180. Without this, a name containing
+// a comma or quote (e.g. `Smith, John` or `Jane "JJ" Doe`) corrupts the column alignment.
+function csvField(value) {
+  return `"${String(value).replace(/"/g, '""')}"`;
+}
+
 const exportSubscribersCsv = asyncHandler(async (req, res) => {
   const result = await pool.query('SELECT email, name, is_active, created_at FROM subscribers ORDER BY created_at DESC');
   const header = 'email,name,is_active,created_at\n';
   const rows = result.rows
-    .map((r) => [r.email, r.name || '', r.is_active, r.created_at.toISOString()].join(','))
+    .map((r) => [r.email, r.name || '', r.is_active, r.created_at.toISOString()].map(csvField).join(','))
     .join('\n');
 
   res.setHeader('Content-Type', 'text/csv');

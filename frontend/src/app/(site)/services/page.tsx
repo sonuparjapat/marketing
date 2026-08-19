@@ -11,9 +11,27 @@ export const metadata: Metadata = {
 
 export default async function ServicesPage() {
   const services = await getServices();
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    name: 'Services',
+    url: `${siteUrl}/services`,
+    mainEntity: {
+      '@type': 'ItemList',
+      itemListElement: services.map((s, i) => ({
+        '@type': 'ListItem',
+        position: i + 1,
+        url: `${siteUrl}/services/${s.slug}`,
+        name: s.title,
+      })),
+    },
+  };
 
   return (
     <main className="px-6 py-24 md:px-16">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <div className="mx-auto max-w-[1312px]">
         <span className="text-xs uppercase tracking-[0.2em] text-accent">What we do</span>
         <h1 className="mt-3 mb-6 max-w-2xl font-serif text-4xl font-normal leading-tight md:text-[50px]">

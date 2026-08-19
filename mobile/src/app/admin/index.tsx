@@ -11,10 +11,11 @@ export default function AdminQuickViewScreen() {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const router = useRouter();
   const [admin, setAdmin] = useState<AdminUser | null>(null);
-  const [leadsToday, setLeadsToday] = useState(0);
+  const [leadsToday, setLeadsToday] = useState<number | null>(0);
   const [pendingCallbacks, setPendingCallbacks] = useState(0);
   const [recentLeads, setRecentLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   const load = useCallback(async () => {
     const stored = await getStoredAdmin();
@@ -23,11 +24,21 @@ export default function AdminQuickViewScreen() {
       return;
     }
     setAdmin(stored);
+    setLoadError(false);
     try {
       const stats = await getAdminStats();
       setLeadsToday(stats.leadsToday);
       setPendingCallbacks(stats.pendingCallbacks);
       setRecentLeads(stats.recentLeads);
+    } catch {
+      // A 401 clears the stored token/user (see api/client.ts's interceptor) — if that just
+      // happened, bounce back to login instead of leaving a stale dashboard on screen.
+      const stillSignedIn = await getStoredAdmin();
+      if (!stillSignedIn) {
+        router.replace('/admin/login');
+        return;
+      }
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -73,10 +84,11 @@ export default function AdminQuickViewScreen() {
             </Pressable>
           </View>
           <Text style={styles.signedIn}>Signed in as {admin?.name || admin?.email}</Text>
+          {loadError && <Text style={styles.errorText}>Couldn't refresh stats — showing the last known numbers.</Text>}
 
           <View style={styles.statsRow}>
             <View style={styles.statCard}>
-              <Text style={styles.statValue}>{leadsToday}</Text>
+              <Text style={styles.statValue}>{leadsToday ?? '—'}</Text>
               <Text style={styles.statLabel}>Today&apos;s leads</Text>
             </View>
             <View style={styles.statCard}>
@@ -106,7 +118,8 @@ const createStyles = (colors: ThemeColors) =>
     header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
     h1: { color: colors.fg, fontSize: 22, fontWeight: '600' },
     logout: { color: colors.muted, fontSize: 13 },
-    signedIn: { color: colors.faint, fontSize: 12, marginBottom: 24 },
+    signedIn: { color: colors.faint, fontSize: 12, marginBottom: 8 },
+    errorText: { color: colors.accent, fontSize: 12, marginBottom: 16 },
     statsRow: { flexDirection: 'row', gap: 12, marginBottom: 28 },
     statCard: { flex: 1, backgroundColor: colors.bg2, borderWidth: 1, borderColor: colors.line, borderRadius: 8, padding: 16 },
     statValue: { color: colors.accent, fontSize: 26, fontWeight: '700' },

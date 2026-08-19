@@ -37,8 +37,17 @@ export default async function BlogPage({
     return `/blog?${p.toString()}`;
   };
 
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    name: 'Blog',
+    url: `${siteUrl}/blog`,
+  };
+
   return (
     <main className="px-6 py-24 md:px-16">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <div className="mx-auto max-w-[1312px]">
         <div className="mb-12 flex flex-col justify-between gap-8 md:flex-row md:items-end">
           <div>

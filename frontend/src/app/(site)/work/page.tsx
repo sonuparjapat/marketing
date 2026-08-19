@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
-import { getCaseStudies } from '@/lib/api';
+import { getCaseStudies, getPublicSettings } from '@/lib/api';
 
 export const metadata: Metadata = {
   title: 'Our Work',
@@ -10,10 +10,29 @@ export const metadata: Metadata = {
 };
 
 export default async function WorkPage() {
-  const caseStudies = await getCaseStudies();
+  const [caseStudies, settings] = await Promise.all([getCaseStudies(), getPublicSettings()]);
+  const agencyName = settings.agency_name || 'Anvil';
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    name: 'Our Work',
+    url: `${siteUrl}/work`,
+    mainEntity: {
+      '@type': 'ItemList',
+      itemListElement: caseStudies.map((c, i) => ({
+        '@type': 'ListItem',
+        position: i + 1,
+        url: `${siteUrl}/work/${c.slug}`,
+        name: c.title,
+      })),
+    },
+  };
 
   return (
     <main className="px-6 py-24 md:px-16">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <div className="mx-auto max-w-[1312px]">
         <span className="text-xs uppercase tracking-[0.2em] text-accent">Selected work</span>
         <h1 className="mt-3 mb-16 max-w-2xl font-serif text-4xl font-normal leading-tight md:text-[50px]">
@@ -31,7 +50,7 @@ export default async function WorkPage() {
               <div className="p-8">
                 {cs.is_featured && (
                   <span className="mb-4 inline-block bg-accent px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-bg">
-                    Built &amp; owned by Anvil
+                    Built &amp; owned by {agencyName}
                   </span>
                 )}
                 <span className="block text-[11px] uppercase tracking-wider text-faint">{cs.client_industry}</span>

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { getService, getFaqs } from '@/lib/api';
+import { getService, getFaqs, getPublicSettings } from '@/lib/api';
 import { ArrowRightIcon, SERVICE_ICONS } from '@/components/icons';
 import { FaqAccordion } from '@/components/FaqAccordion';
 
@@ -19,7 +19,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function ServiceDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const service = await getService(slug);
+  const [service, settings] = await Promise.all([getService(slug), getPublicSettings()]);
   if (!service) notFound();
 
   const Icon = SERVICE_ICONS[service.icon] || SERVICE_ICONS.target;
@@ -31,7 +31,7 @@ export default async function ServiceDetailPage({ params }: { params: Promise<{ 
     '@type': 'Service',
     name: service.title,
     description: service.short_description,
-    provider: { '@type': 'Organization', name: 'Anvil Digital' },
+    provider: { '@type': 'Organization', name: settings.agency_name || 'Anvil Digital' },
   };
 
   const faqJsonLd = faqs.length

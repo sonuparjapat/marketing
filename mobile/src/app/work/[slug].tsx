@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Pressable, ActivityIndicator, Share } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, spacing, type ThemeColors } from '../../context/theme';
 import { getCaseStudy, CaseStudyDetail } from '../../api/services';
+
+const SITE_URL = process.env.EXPO_PUBLIC_SITE_URL || 'http://localhost:3000';
 
 function stripHtml(html: string) {
   return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
@@ -16,11 +18,13 @@ export default function CaseStudyDetailScreen() {
   const router = useRouter();
   const [cs, setCs] = useState<CaseStudyDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     if (!slug) return;
     getCaseStudy(slug)
       .then(setCs)
+      .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, [slug]);
 
@@ -35,17 +39,22 @@ export default function CaseStudyDetailScreen() {
   if (!cs) {
     return (
       <View style={[styles.screen, { justifyContent: 'center', alignItems: 'center' }]}>
-        <Text style={{ color: colors.muted }}>Case study not found.</Text>
+        <Text style={{ color: colors.muted }}>{error ? "Couldn't load this case study — check your connection." : 'Case study not found.'}</Text>
       </View>
     );
   }
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={{ padding: spacing.lg, paddingTop: 60 }}>
-      <Pressable onPress={() => router.back()} style={styles.back}>
-        <Ionicons name="chevron-back" size={18} color={colors.muted} />
-        <Text style={styles.backText}>Work</Text>
-      </Pressable>
+      <View style={styles.topRow}>
+        <Pressable onPress={() => router.back()} style={styles.back}>
+          <Ionicons name="chevron-back" size={18} color={colors.muted} />
+          <Text style={styles.backText}>Work</Text>
+        </Pressable>
+        <Pressable onPress={() => Share.share({ message: `${cs.title} — ${SITE_URL}/work/${cs.slug}` })} hitSlop={8}>
+          <Ionicons name="share-outline" size={20} color={colors.muted} />
+        </Pressable>
+      </View>
 
       {cs.is_featured && <Text style={styles.badge}>BUILT & OWNED BY US</Text>}
       <Text style={styles.industry}>{cs.client_industry}</Text>
@@ -80,7 +89,8 @@ export default function CaseStudyDetailScreen() {
 const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.bg },
-    back: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
+    topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
+    back: { flexDirection: 'row', alignItems: 'center' },
     backText: { color: colors.muted, fontSize: 14, marginLeft: 4 },
     badge: { color: colors.accent, fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 10 },
     industry: { color: colors.faint, fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 },
