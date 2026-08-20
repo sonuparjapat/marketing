@@ -46,14 +46,15 @@ Three independent apps, one shared source of truth: every table in Postgres, exp
 - Premium dark-theme homepage — hero, admin-managed **banner/carousel rotation**, client logo marquee, services grid, a "How We Work" process section, animated stats, case studies, testimonials carousel, blog preview, CTA — every section individually toggleable from the admin panel
 - Full page set: Services (listing + detail with FAQs), Work/Case Studies (listing + detail), Blog (listing with search/category filters + full article pages with TOC, syntax highlighting, reading time, share buttons), About, Contact (lead form + callback request), legal pages (Privacy/Terms/Refund — DB-backed, not hardcoded)
 - **Customer accounts** — a separate identity space from admins: register/login, a right-side auth drawer, a real forgot-password flow (email-based reset link), and a self-service account page (export your data as JSON, delete your account)
+- **Blog comments** (auto-published, signed-in customers only), **customer-submitted reviews** (pending admin approval, feeds the same testimonials shown on the homepage), and a **support ticket system** (customers open/reply to tickets at `/account/support`, admins get live + email notification and reply from `/admin/support-tickets`)
 - A cookie-consent banner gates Google Analytics loading until the visitor actually accepts — GA4 never fires on page load unconditionally
 - SEO: canonical URLs + Open Graph + JSON-LD (Organization, Article, BreadcrumbList, FAQPage) on every route, sitemap.xml, robots.txt
 - A visual design system — glassmorphic panels, gradient icon badges, a gold/emerald/coral accent palette — shared across every page via `globals.css` utility classes
 
 ### 🛠️ Admin panel (`frontend/`, `admin/(dashboard)` route group)
 - **Full RBAC**: departments own a permission matrix (one row per resource, four `create`/`read`/`update`/`delete` flags per grant), with a Super Admin bypass; every nav item and UI control is gated by the signed-in admin's actual permissions, not just hidden by convention
-- Content CRUD for every public-facing resource: Posts (full-page TipTap editor — tables, YouTube embeds, code blocks, SEO sidebar with live preview), Case Studies, Services (drag-to-reorder), Testimonials, Team, FAQs, Pages, Blog Categories, **Banners** (drag-to-reorder hero carousel), Client Logos, Homepage Stats/Sections, Nav Links
-- Inbox: Leads, Callback Requests, Newsletter Subscribers (CSV export)
+- Content CRUD for every public-facing resource: Posts (full-page TipTap editor — tables, YouTube embeds, code blocks, SEO sidebar with live preview), Case Studies, Services (drag-to-reorder), Testimonials (with an approval queue for customer-submitted reviews), Comments (moderation), Team, FAQs, Pages, Blog Categories, **Banners** (drag-to-reorder hero carousel), Client Logos, Homepage Stats/Sections, Nav Links
+- Inbox: Leads, Callback Requests, Newsletter Subscribers (CSV export), **Support Tickets** (threaded replies, live + email notification on new tickets/replies), **Customers** (search, view, deactivate)
 - Media library with local-storage fallback + S3 support, no-code-required uploads
 - Admin account management: Super-Admin-only admin creation/deactivation, self-service + Super-Admin password reset
 - Real-time notifications (Socket.io) on new leads/callbacks, plus Expo push notifications to a hidden mobile admin screen

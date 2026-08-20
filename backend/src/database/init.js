@@ -322,16 +322,47 @@ async function initDB() {
 
     // Blog comments — auto-published (no moderation queue), with an admin delete-after-the-fact
     // affordance instead. Deleting the post or the commenting customer cascades the comment away.
+    // parent_id makes a comment a reply — NULL means a top-level comment.
     await client.query(`
       CREATE TABLE IF NOT EXISTS comments (
         id             SERIAL PRIMARY KEY,
         post_id        INT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
         customer_id    INT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+        parent_id      INT REFERENCES comments(id) ON DELETE CASCADE,
         content        TEXT NOT NULL,
         created_at     TIMESTAMP DEFAULT NOW()
       );
     `);
+    await client.query(`ALTER TABLE comments ADD COLUMN IF NOT EXISTS parent_id INT REFERENCES comments(id) ON DELETE CASCADE;`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_comments_post ON comments(post_id, created_at);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_comments_parent ON comments(parent_id);`);
+
+    // Likes/dislikes on posts and comments — one vote per customer per target, switching between
+    // like/dislike updates the row (UNIQUE constraint + ON CONFLICT upsert in the controller)
+    // rather than allowing duplicates.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS post_votes (
+        id             SERIAL PRIMARY KEY,
+        post_id        INT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+        customer_id    INT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+        vote_type      VARCHAR(10) NOT NULL CHECK (vote_type IN ('like', 'dislike')),
+        created_at     TIMESTAMP DEFAULT NOW(),
+        UNIQUE (post_id, customer_id)
+      );
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_post_votes_post ON post_votes(post_id, vote_type);`);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS comment_votes (
+        id             SERIAL PRIMARY KEY,
+        comment_id     INT NOT NULL REFERENCES comments(id) ON DELETE CASCADE,
+        customer_id    INT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+        vote_type      VARCHAR(10) NOT NULL CHECK (vote_type IN ('like', 'dislike')),
+        created_at     TIMESTAMP DEFAULT NOW(),
+        UNIQUE (comment_id, customer_id)
+      );
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_comment_votes_comment ON comment_votes(comment_id, vote_type);`);
 
     // Support tickets — a customer opens one (with its first message), admin replies land as more
     // rows in ticket_messages. Real-time is admin-side only (existing Socket.IO room); the customer

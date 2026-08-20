@@ -44,7 +44,6 @@ export default function AdminCommentsPage() {
 
   useEffect(() => {
     load(page);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page]);
 
   const onDelete = async (comment: Comment) => {

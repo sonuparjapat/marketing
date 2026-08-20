@@ -26,14 +26,27 @@ const listPosts = asyncHandler(async (req, res) => {
   }
 
   const where = `WHERE ${conditions.join(' AND ')}`;
+  const orderBy = req.query.sort === 'trending' ? 'views DESC, created_at DESC' : 'created_at DESC';
   const totalResult = await pool.query(`SELECT COUNT(*)::int AS count FROM posts ${where}`, params);
   const dataResult = await pool.query(
     `SELECT id, title, slug, excerpt, cover_image, cover_image_alt, category, tags, author, views, created_at
-     FROM posts ${where} ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+     FROM posts ${where} ORDER BY ${orderBy} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
     [...params, limit, offset]
   );
 
   ok(res, { items: dataResult.rows, page, limit, total: totalResult.rows[0].count });
+});
+
+// Distinct tags across published posts with a usage count, for the blog's tag-browsing chips —
+// tags live as a JSONB array per post rather than their own table, so this flattens them in SQL.
+const listTags = asyncHandler(async (req, res) => {
+  const result = await pool.query(`
+    SELECT tag, COUNT(*)::int AS count
+    FROM posts, jsonb_array_elements_text(tags) AS tag
+    WHERE is_published = TRUE
+    GROUP BY tag ORDER BY count DESC, tag ASC
+  `);
+  ok(res, result.rows);
 });
 
 const getPost = asyncHandler(async (req, res) => {

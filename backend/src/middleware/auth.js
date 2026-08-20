@@ -79,4 +79,33 @@ async function customerAuth(req, res, next) {
   }
 }
 
-module.exports = { adminAuth, extractToken, requireSuperAdmin, checkPermission, customerAuth, extractCustomerToken };
+// For public GET endpoints that show engagement data (vote counts, "did I already vote") to
+// everyone but need to know WHICH customer is asking, if any — never rejects, just leaves
+// req.customer unset for an anonymous or invalid/expired token instead of 401ing the whole page.
+async function optionalCustomerAuth(req, res, next) {
+  const token = extractCustomerToken(req);
+  if (!token) return next();
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (decoded.type !== 'customer') return next();
+    const result = await pool.query('SELECT token_version, is_active FROM customers WHERE id = $1', [decoded.id]);
+    const customer = result.rows[0];
+    if (customer && customer.is_active !== false && (decoded.tv || 1) === customer.token_version) {
+      req.customer = decoded;
+    }
+  } catch {
+    // Invalid/expired token on an optional-auth route — treat the request as anonymous.
+  }
+  next();
+}
+
+module.exports = {
+  adminAuth,
+  extractToken,
+  requireSuperAdmin,
+  checkPermission,
+  customerAuth,
+  extractCustomerToken,
+  optionalCustomerAuth,
+};
