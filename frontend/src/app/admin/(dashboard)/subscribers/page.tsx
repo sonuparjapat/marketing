@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import apiClient from '@/lib/apiClient';
 import { Pagination } from '@/components/ui/Pagination';
+import { SectionInfo } from '@/components/admin/SectionInfo';
 
 const PAGE_SIZE = 20;
 
@@ -54,12 +55,16 @@ export default function AdminSubscribersPage() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-2 flex items-center justify-between">
         <h1 className="font-serif text-2xl">Subscribers ({total})</h1>
         <button onClick={exportCsv} disabled={exporting} className="border border-line px-5 py-2.5 text-sm hover:border-accent hover:text-accent disabled:opacity-60">
           {exporting ? 'Exporting…' : 'Export CSV'}
         </button>
       </div>
+      <SectionInfo
+        description="Everyone who's signed up for the newsletter via the site's footer/signup forms. Read-only here — there's no in-app campaign sender, so use Export CSV to pull the list into whatever email tool actually sends the newsletter (e.g. Mailchimp, Brevo)."
+        example="you're about to send this month's newsletter. You click Export CSV, upload the file into your email tool's recipient list, and send from there — this page is the source of truth for who's opted in, not the sending mechanism."
+      />
       <div className="overflow-x-auto border border-line">
         <table className="w-full text-sm">
           <thead>

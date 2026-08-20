@@ -6,6 +6,7 @@ import apiClient from '@/lib/apiClient';
 import { useAdminSocket } from '@/lib/useAdminSocket';
 import { useAdminAuth } from '@/context/AdminAuthContext';
 import { Skeleton } from '@/components/Skeleton';
+import { SectionInfo } from '@/components/admin/SectionInfo';
 
 type Stats = {
   leadsToday: number | null;
@@ -47,7 +48,11 @@ export default function AdminDashboardPage() {
 
   return (
     <div>
-      <h1 className="mb-8 font-serif text-2xl">Dashboard</h1>
+      <h1 className="mb-2 font-serif text-2xl">Dashboard</h1>
+      <SectionInfo
+        description="A live at-a-glance summary — the numbers update in real time as new leads/callbacks come in via the same socket connection that powers the sidebar's notification badge. It's read-only; use the linked pages (Leads, etc.) to actually act on anything."
+        example="you open the panel first thing in the morning — this page tells you at a glance whether anything came in overnight (new leads, pending callbacks) before you go looking page by page."
+      />
 
       <div className="mb-12 grid grid-cols-2 gap-4 md:grid-cols-5">
         {stats

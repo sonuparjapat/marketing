@@ -28,7 +28,16 @@ export default function AdminLogsPage() {
   return (
     <div>
       <h1 className="mb-3 font-serif text-2xl">Activity Log</h1>
-      <p className="mb-8 text-sm text-muted">Every content change made from this admin panel, most recent first.</p>
+      <p className="mb-8 text-sm leading-relaxed text-muted">
+        <strong className="text-fg">What this does:</strong> an automatic, unfakeable audit trail — every create/update/
+        delete made anywhere in this admin panel is logged here the instant it happens, with who did it and when.
+        Nothing here is editable; it's a record, not a tool.
+        <br />
+        <span className="text-faint">
+          Example: a homepage stat looks wrong and nobody remembers changing it. Search this log by module
+          (&quot;homepage_stats&quot;) to see exactly who edited it and when, without asking around.
+        </span>
+      </p>
 
       {loading ? (
         <div className="space-y-2">

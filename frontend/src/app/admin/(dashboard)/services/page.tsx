@@ -10,6 +10,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Input, Textarea, Select } from '@/components/ui/Field';
 import { TagsInput } from '@/components/admin/TagsInput';
+import { SectionInfo } from '@/components/admin/SectionInfo';
 
 type Service = {
   id: number;
@@ -143,6 +144,10 @@ export default function AdminServicesPage() {
         </div>
         {canCreate && <Button onClick={openCreate}>+ New</Button>}
       </div>
+      <SectionInfo
+        description="Manages the service offerings shown on the public /services listing page, each with its own /services/[slug] detail page — the actual menu of what the agency sells. Drag rows to reorder; that order is exactly what visitors see."
+        example={`you start offering a new "Conversion Rate Optimization" service. You create it here with a short pitch, an icon, and a bullet list of what's included — it appears as a new card on /services with its own detail page, in whatever position you drag it to.`}
+      />
 
       {loading ? (
         <div className="border border-line">
@@ -217,20 +222,32 @@ export default function AdminServicesPage() {
         }
       >
         <div className="space-y-5">
-          <Input label="Title" value={form.title} onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))} />
+          <Input
+            label="Title"
+            help="The service name — shown as the card heading on /services and as the <h1> on its detail page."
+            value={form.title}
+            onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
+          />
           <Textarea
             label="Short description"
+            help="A one-to-two sentence pitch shown on the /services card, before a visitor clicks through."
             rows={3}
             value={form.short_description}
             onChange={(e) => setForm((p) => ({ ...p, short_description: e.target.value }))}
           />
           <Textarea
             label="Full description"
+            help="The longer explanation shown on this service's own detail page, below the pitch."
             rows={4}
             value={form.full_description}
             onChange={(e) => setForm((p) => ({ ...p, full_description: e.target.value }))}
           />
-          <Select label="Icon" value={form.icon} onChange={(e) => setForm((p) => ({ ...p, icon: e.target.value }))}>
+          <Select
+            label="Icon"
+            help="The small icon shown next to the title on the card and detail page — purely visual, pick whichever best represents the service."
+            value={form.icon}
+            onChange={(e) => setForm((p) => ({ ...p, icon: e.target.value }))}
+          >
             {ICONS.map((i) => (
               <option key={i} value={i}>
                 {i}
@@ -238,17 +255,25 @@ export default function AdminServicesPage() {
             ))}
           </Select>
           <label className="block">
-            <span className="mb-2 block text-xs uppercase tracking-wide text-muted">Features</span>
+            <span className="mb-2 block text-xs uppercase tracking-wide text-muted">
+              Features
+              <span className="mt-0.5 block text-[11px] font-normal normal-case tracking-normal text-faint">
+                The bullet-point list of what&apos;s included, shown on the service&apos;s detail page.
+              </span>
+            </span>
             <TagsInput value={form.features_json} onChange={(tags) => setForm((p) => ({ ...p, features_json: tags }))} />
           </label>
-          <label className="flex items-center gap-3">
+          <label className="flex items-start gap-3">
             <input
               type="checkbox"
               checked={form.is_active}
               onChange={(e) => setForm((p) => ({ ...p, is_active: e.target.checked }))}
-              className="h-4 w-4 accent-accent"
+              className="mt-0.5 h-4 w-4 accent-accent"
             />
-            <span className="text-sm">Active (visible on site)</span>
+            <span>
+              <span className="block text-sm">Active (visible on site)</span>
+              <span className="mt-0.5 block text-[11px] text-faint">Off removes this service from /services and its detail page without deleting it.</span>
+            </span>
           </label>
         </div>
       </Modal>

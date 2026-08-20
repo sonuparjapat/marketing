@@ -43,6 +43,7 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     items: [
       { href: '/admin/homepage-sections', label: 'Sections', permission: 'homepage_sections.read' },
       { href: '/admin/banners', label: 'Banners', permission: 'banners.read' },
+      { href: '/admin/homepage-reviews', label: 'Homepage Reviews', permission: 'testimonials.read' },
       { href: '/admin/homepage-stats', label: 'Stats', permission: 'homepage_stats.read' },
       { href: '/admin/why-us', label: 'Why Us', permission: 'why_us.read' },
       { href: '/admin/client-logos', label: 'Client Logos', permission: 'client_logos.read' },

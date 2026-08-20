@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import apiClient from '@/lib/apiClient';
 import { useAdminAuth } from '@/context/AdminAuthContext';
 import { Pagination } from '@/components/ui/Pagination';
+import { SectionInfo } from '@/components/admin/SectionInfo';
 
 const PAGE_SIZE = 20;
 
@@ -48,7 +49,11 @@ export default function AdminCallbacksPage() {
 
   return (
     <div>
-      <h1 className="mb-6 font-serif text-2xl">Callback Requests</h1>
+      <h1 className="mb-2 font-serif text-2xl">Callback Requests</h1>
+      <SectionInfo
+        description={`Every "call me back" request submitted from the public site's callback widget — a lighter-weight alternative to the full contact form for a visitor who'd rather just talk. Mark one "called" once you've actually made contact, purely for your own tracking.`}
+        example={`a visitor is on the phone-shy side and just leaves their number with a preferred time. It shows up here as "pending" — once someone on the team actually calls them, they mark it "called" so it drops off the follow-up radar.`}
+      />
       <div className="overflow-x-auto border border-line">
         <table className="w-full text-sm">
           <thead>

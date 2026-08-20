@@ -8,6 +8,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Input, Textarea } from '@/components/ui/Field';
+import { SectionInfo } from '@/components/admin/SectionInfo';
 
 type Permission = { id: number; resource_key: string; label: string; module_group: string };
 type PermissionCatalog = Record<string, Permission[]>;
@@ -171,15 +172,14 @@ export default function DepartmentsPage() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="font-serif text-2xl">Departments</h1>
-          <p className="mt-1 text-xs text-faint">
-            Each department grants Create/Read/Update/Delete access per resource to the admins assigned to it.
-          </p>
-        </div>
+      <div className="mb-2 flex items-center justify-between">
+        <h1 className="font-serif text-2xl">Departments</h1>
         <Button onClick={openCreate}>+ New department</Button>
       </div>
+      <SectionInfo
+        description="A department is a reusable permission bundle — a named set of Create/Read/Update/Delete grants across every admin resource. Editors don't get permissions individually; they inherit whatever their assigned department grants, so editing a department instantly reshapes access for everyone in it."
+        example={`you want a "Support" role that can read and reply to tickets and view customers, but touch nothing else. You create a "Support" department, check Read+Update on Support Tickets and Read on Customers only, leave everything else unchecked — any admin assigned to it can now do exactly that and nothing more.`}
+      />
 
       {loading ? (
         <div className="border border-line">
@@ -238,11 +238,16 @@ export default function DepartmentsPage() {
         }
       >
         <div className="space-y-5">
-          <Input label="Name" value={name} onChange={(e) => setName(e.target.value)} />
-          <Textarea label="Description" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
+          <Input label="Name" help="Internal label only — shown in the Admins page's Department dropdown, never visible outside this panel." value={name} onChange={(e) => setName(e.target.value)} />
+          <Textarea label="Description" help="A short note on who this department is for — helps whoever's assigning admins later remember the intent." rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
           <div>
             <div className="mb-3 flex items-center justify-between">
-              <span className="block text-xs uppercase tracking-wide text-muted">Permission matrix</span>
+              <span className="block text-xs uppercase tracking-wide text-muted">
+                Permission matrix
+                <span className="mt-0.5 block text-[11px] font-normal normal-case tracking-normal text-faint">
+                  One row per admin resource. Check a box to grant that action; click a column header to toggle it for every visible row at once.
+                </span>
+              </span>
               <input
                 type="text"
                 value={search}

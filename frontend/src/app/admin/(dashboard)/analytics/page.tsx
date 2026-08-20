@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import apiClient from '@/lib/apiClient';
 import { Skeleton } from '@/components/Skeleton';
+import { SectionInfo } from '@/components/admin/SectionInfo';
 
 type Analytics = {
   leadsByDay: { day: string; count: number }[];
@@ -30,7 +31,11 @@ export default function AdminAnalyticsPage() {
 
   return (
     <div>
-      <h1 className="mb-8 font-serif text-2xl">Analytics</h1>
+      <h1 className="mb-2 font-serif text-2xl">Analytics</h1>
+      <SectionInfo
+        description="A read-only summary built from two sources: lead submissions (for the charts below) and lightweight pageview pings sent by the public site (for Top Pages) — nothing here is editable, it's purely for spotting trends."
+        example="you notice the leads-by-day chart spikes every Tuesday. That tells you something (a newsletter send day? a paid ad schedule?) worth digging into outside this panel — this page surfaces the pattern, it doesn't explain it."
+      />
 
       <div className="mb-10 border border-line bg-bg2 p-6">
         <div className="mb-4 text-xs uppercase tracking-[0.2em] text-accent">Leads — last 14 days</div>

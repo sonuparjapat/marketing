@@ -8,6 +8,7 @@ import { useToast } from '@/components/Toast';
 import { useAdminAuth } from '@/context/AdminAuthContext';
 import { Skeleton } from '@/components/Skeleton';
 import { Pagination } from '@/components/ui/Pagination';
+import { SectionInfo } from '@/components/admin/SectionInfo';
 
 const PAGE_SIZE = 20;
 

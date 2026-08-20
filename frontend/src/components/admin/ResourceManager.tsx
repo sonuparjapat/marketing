@@ -11,6 +11,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Pagination } from '@/components/ui/Pagination';
+import { SectionInfo } from './SectionInfo';
 
 export type FieldType = 'text' | 'textarea' | 'richtext' | 'image' | 'boolean' | 'number' | 'string-array' | 'json' | 'select';
 
@@ -20,6 +21,10 @@ export type FieldConfig = {
   type: FieldType;
   options?: string[];
   placeholder?: string;
+  // One concrete sentence on what this specific field controls and where it shows up — e.g.
+  // "Shown as the card title on /services and in the nav dropdown." Optional but every field on
+  // every admin page should have one; see the standing project instruction this implements.
+  help?: string;
 };
 
 export type ColumnConfig<T> = { key: string; label: string; render?: (row: T) => ReactNode };
@@ -28,6 +33,8 @@ type Row = Record<string, unknown> & { id: number };
 
 export function ResourceManager<T extends Row>({
   title,
+  description,
+  example,
   apiPath,
   columns,
   fields,
@@ -35,6 +42,10 @@ export function ResourceManager<T extends Row>({
   hideDelete,
 }: {
   title: string;
+  // What this resource IS and what real-world thing changes when you edit it — shown as a banner
+  // above the table via SectionInfo, so someone new to the panel doesn't have to guess.
+  description: string;
+  example?: string;
   apiPath: string;
   columns: ColumnConfig<T>[];
   fields: FieldConfig[];
@@ -170,10 +181,11 @@ export function ResourceManager<T extends Row>({
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-2 flex items-center justify-between">
         <h1 className="font-serif text-2xl">{title}</h1>
         {canCreate && <Button onClick={openCreate}>+ New</Button>}
       </div>
+      <SectionInfo description={description} example={example} />
 
       {loading && !items.length ? (
         <div className="border border-line">
@@ -261,14 +273,20 @@ function FieldInput({
   onChange: (v: unknown) => void;
 }) {
   const label = (
-    <span className="mb-2 block text-xs uppercase tracking-wide text-muted">{field.label}</span>
+    <span className="mb-2 block text-xs uppercase tracking-wide text-muted">
+      {field.label}
+      {field.help && <span className="mt-0.5 block text-[11px] font-normal normal-case tracking-normal text-faint">{field.help}</span>}
+    </span>
   );
 
   if (field.type === 'boolean') {
     return (
-      <label className="flex items-center gap-3">
-        <input type="checkbox" checked={Boolean(value)} onChange={(e) => onChange(e.target.checked)} className="h-4 w-4 accent-accent" />
-        <span className="text-sm">{field.label}</span>
+      <label className="flex items-start gap-3">
+        <input type="checkbox" checked={Boolean(value)} onChange={(e) => onChange(e.target.checked)} className="mt-0.5 h-4 w-4 accent-accent" />
+        <span>
+          <span className="block text-sm">{field.label}</span>
+          {field.help && <span className="mt-0.5 block text-[11px] text-faint">{field.help}</span>}
+        </span>
       </label>
     );
   }

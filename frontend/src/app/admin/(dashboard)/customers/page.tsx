@@ -7,6 +7,7 @@ import { useAdminAuth } from '@/context/AdminAuthContext';
 import { Pagination } from '@/components/ui/Pagination';
 import { TableSkeleton } from '@/components/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { SectionInfo } from '@/components/admin/SectionInfo';
 
 const PAGE_SIZE = 20;
 
@@ -68,16 +69,21 @@ export default function AdminCustomersPage() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-2 flex items-center justify-between">
         <h1 className="font-serif text-2xl">Customers</h1>
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search name or email…"
+          aria-label="Search customers by name or email"
           className="w-64 border border-line bg-bg2 px-3.5 py-2 text-sm placeholder:text-faint focus:border-accent focus:outline-none"
         />
       </div>
+      <SectionInfo
+        description="Every public-site account (separate from admin accounts) — everyone who's registered to comment, review, subscribe, or buy a premium plan. Deactivate blocks their login without deleting their history (comments/reviews/tickets/payments they've already made stay intact); it's the account-suspension tool, not a data-deletion one."
+        example="a customer is spamming abusive comments across the blog. You find their account here and click Deactivate — they can no longer log in, but their past comments (which you'd separately remove from the Comments page) and any purchase history stay on record."
+      />
 
       {loading ? (
         <div className="border border-line">

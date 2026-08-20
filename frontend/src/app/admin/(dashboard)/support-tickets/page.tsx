@@ -6,6 +6,7 @@ import { useToast } from '@/components/Toast';
 import { useAdminAuth } from '@/context/AdminAuthContext';
 import { TableSkeleton } from '@/components/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { SectionInfo } from '@/components/admin/SectionInfo';
 
 const STATUSES = ['open', 'in_progress', 'resolved', 'closed'];
 
@@ -87,12 +88,13 @@ export default function AdminSupportTicketsPage() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-2 flex items-center justify-between">
         <h1 className="font-serif text-2xl">Support Tickets</h1>
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
           className="border border-line bg-bg2 px-3 py-2 text-sm"
+          aria-label="Filter by status"
         >
           <option value="">All statuses</option>
           {STATUSES.map((s) => (
@@ -102,6 +104,10 @@ export default function AdminSupportTicketsPage() {
           ))}
         </select>
       </div>
+      <SectionInfo
+        description="Support conversations opened by logged-in customers from their account. Replying here emails the customer their reply (they don't get a live in-app notification, just email) and auto-moves the ticket to 'in progress'; Closed tickets stop accepting new replies from either side."
+        example={`a customer can't figure out how to reset their password and opens a ticket. You see it here, reply with the steps — they get an email with your reply, and the ticket status flips to "in progress" until you mark it resolved.`}
+      />
 
       {loading ? (
         <div className="border border-line">

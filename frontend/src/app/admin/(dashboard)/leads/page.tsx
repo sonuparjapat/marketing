@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import apiClient from '@/lib/apiClient';
 import { useAdminAuth } from '@/context/AdminAuthContext';
 import { Pagination } from '@/components/ui/Pagination';
+import { SectionInfo } from '@/components/admin/SectionInfo';
 
 const PAGE_SIZE = 20;
 
@@ -80,12 +81,13 @@ export default function AdminLeadsPage() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-2 flex items-center justify-between">
         <h1 className="font-serif text-2xl">Leads</h1>
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
           className="border border-line bg-bg2 px-3 py-2 text-sm"
+          aria-label="Filter by status"
         >
           <option value="">All statuses</option>
           {STATUSES.map((s) => (
@@ -95,6 +97,10 @@ export default function AdminLeadsPage() {
           ))}
         </select>
       </div>
+      <SectionInfo
+        description="Every submission from the public /contact form — the agency's actual sales pipeline. Status tracks where a prospect is in the funnel; the Status dropdown here is the only place that changes, nothing about the lead is auto-advanced. An open Slack/email alert also fires the moment a new one comes in (see the notification badge in the sidebar)."
+        example={`someone fills out the contact form asking about SEO. They appear here as "new" — you call them, move their status to "contacted", and jot down what was discussed in View → Internal notes so the next person to touch this lead has context.`}
+      />
 
       <div className="overflow-x-auto border border-line">
         <table className="w-full text-sm">
@@ -181,7 +187,12 @@ export default function AdminLeadsPage() {
               </div>
             </dl>
             <label className="block">
-              <span className="mb-2 block text-xs uppercase tracking-wide text-muted">Internal notes</span>
+              <span className="mb-2 block text-xs uppercase tracking-wide text-muted">
+                Internal notes
+                <span className="mt-0.5 block text-[11px] font-normal normal-case tracking-normal text-faint">
+                  Private — the lead never sees this. Use it to log call outcomes or context for whoever follows up next.
+                </span>
+              </span>
               <textarea
                 rows={4}
                 value={notes}

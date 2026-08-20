@@ -49,9 +49,16 @@ export default function AdminHomepageSectionsPage() {
   return (
     <div className="max-w-xl">
       <h1 className="mb-3 font-serif text-2xl">Homepage Sections</h1>
-      <p className="mb-8 text-sm text-muted">
-        Show or hide sections on the homepage. Order is fixed — content for each section is managed on its own
-        page (Homepage Stats, Why Us, Client Logos, etc.).
+      <p className="mb-8 text-sm leading-relaxed text-muted">
+        <strong className="text-fg">What this does:</strong> a master on/off switch for each block on the homepage, top
+        to bottom in the order listed below (the order itself is fixed in code, not editable here — this page only
+        controls visibility). Turning a section off hides it from every visitor immediately; the content inside it
+        (stats, testimonials, etc.) is untouched and comes back exactly as it was if you turn it back on.
+        <br />
+        <span className="text-faint">
+          Example: you don&apos;t have any client logos uploaded yet and an empty logo strip looks bad. Toggle
+          &quot;Client logo strip&quot; off until Client Logos has real content, then switch it back on.
+        </span>
       </p>
 
       {loading ? (

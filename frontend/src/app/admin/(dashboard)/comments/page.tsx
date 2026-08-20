@@ -8,6 +8,7 @@ import { useAdminAuth } from '@/context/AdminAuthContext';
 import { Pagination } from '@/components/ui/Pagination';
 import { TableSkeleton } from '@/components/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { SectionInfo } from '@/components/admin/SectionInfo';
 
 const PAGE_SIZE = 20;
 
@@ -56,7 +57,11 @@ export default function AdminCommentsPage() {
 
   return (
     <div>
-      <h1 className="mb-6 font-serif text-2xl">Comments</h1>
+      <h1 className="mb-2 font-serif text-2xl">Comments</h1>
+      <SectionInfo
+        description="Every comment left by a signed-in customer on a blog post — auto-published the moment they're posted, with no approval queue. This page exists purely for after-the-fact moderation: Delete is the only action, for removing something abusive, off-topic, or spam."
+        example="a comment on a post contains a spam link. You find it here (with a link straight to the post it's on), click Delete — it's gone from the post immediately, for every visitor."
+      />
 
       {loading ? (
         <div className="border border-line">

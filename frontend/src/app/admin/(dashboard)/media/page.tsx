@@ -7,6 +7,7 @@ import { useToast } from '@/components/Toast';
 import { useAdminAuth } from '@/context/AdminAuthContext';
 import { Skeleton } from '@/components/Skeleton';
 import { Pagination } from '@/components/ui/Pagination';
+import { SectionInfo } from '@/components/admin/SectionInfo';
 
 const PAGE_SIZE = 30;
 
@@ -83,7 +84,7 @@ export default function AdminMediaPage() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-2 flex items-center justify-between">
         <h1 className="font-serif text-2xl">Media Library</h1>
         {canCreate && (
           <>
@@ -108,6 +109,10 @@ export default function AdminMediaPage() {
           </>
         )}
       </div>
+      <SectionInfo
+        description="Every image ever uploaded through the admin panel, in one place — a shared pool that every image field across the panel (cover images, logos, team photos, banners, etc.) uploads into and picks from. Click a filename to copy its URL for pasting elsewhere; deleting a file here breaks it anywhere it's still referenced."
+        example="you upload a new team headshot directly from the Team page's Photo field — that upload lands here too, so you can find and reuse the same image URL later on a different page without re-uploading it."
+      />
 
       {loading ? (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 md:grid-cols-6">

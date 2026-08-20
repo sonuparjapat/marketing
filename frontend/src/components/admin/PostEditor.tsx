@@ -9,6 +9,7 @@ import { useAdminAuth } from '@/context/AdminAuthContext';
 import { RichTextEditor } from './RichTextEditor';
 import { ImageUploadField } from './ImageUploadField';
 import { TagsInput } from './TagsInput';
+import { SectionInfo } from './SectionInfo';
 
 export type Post = {
   id: number;
@@ -180,6 +181,13 @@ export function PostEditor({ postId }: { postId?: number }) {
         </div>
       </div>
 
+      {!postId && (
+        <SectionInfo
+          description="Writes and publishes a blog post shown on the public /blog listing and its own /blog/[slug] page. Nothing here goes live until you click Publish — Save draft keeps it invisible to visitors while you're still working on it."
+          example={`you're writing a post about a new case study. You fill in the title, cover image, and content, click "Save draft" a few times while editing over a couple of days, then hit "Publish" when it's ready — it appears on /blog immediately.`}
+        />
+      )}
+
       <div className="grid gap-8 lg:grid-cols-[1fr_320px]">
         {/* Main content */}
         <div className="min-w-0">
@@ -188,15 +196,18 @@ export function PostEditor({ postId }: { postId?: number }) {
             value={post.title}
             onChange={(e) => update('title', e.target.value)}
             placeholder="Post title"
-            className="mb-3 w-full border-0 bg-transparent font-serif text-4xl font-normal placeholder:text-faint focus:outline-none"
+            className="mb-1 w-full border-0 bg-transparent font-serif text-4xl font-normal placeholder:text-faint focus:outline-none"
           />
+          <p className="mb-3 text-[11px] text-faint">Shown as the page &lt;h1&gt;, the /blog card heading, and used to auto-generate the URL slug below.</p>
           <textarea
             value={post.excerpt}
             onChange={(e) => update('excerpt', e.target.value)}
             placeholder="One or two sentences that show up in previews and search results…"
             rows={2}
-            className="mb-8 w-full resize-none border-0 bg-transparent text-[15px] italic text-muted placeholder:text-faint focus:outline-none"
+            className="mb-2 w-full resize-none border-0 bg-transparent text-[15px] italic text-muted placeholder:text-faint focus:outline-none"
           />
+          <p className="mb-6 text-[11px] text-faint">Shown on the /blog listing card and used as the fallback search-result description — also what a premium post's paywall shows non-subscribers.</p>
+          <p className="mb-2 text-[11px] uppercase tracking-wide text-faint">Content — the full article body readers see on the post page.</p>
           <RichTextEditor value={post.content} onChange={(html) => update('content', html)} />
         </div>
 
@@ -205,7 +216,12 @@ export function PostEditor({ postId }: { postId?: number }) {
           <div className="border border-line bg-bg2 p-5">
             <h3 className="mb-4 text-xs uppercase tracking-[0.2em] text-accent">Publish</h3>
             <label className="mb-4 block">
-              <span className="mb-2 block text-xs uppercase tracking-wide text-muted">Slug</span>
+              <span className="mb-2 block text-xs uppercase tracking-wide text-muted">
+                Slug
+                <span className="mt-0.5 block text-[11px] font-normal normal-case tracking-normal text-faint">
+                  The URL segment — auto-filled from the title until you edit it directly. Changing it after publishing breaks any external links pointing at the old URL.
+                </span>
+              </span>
               <input
                 type="text"
                 value={post.slug}
@@ -227,9 +243,15 @@ export function PostEditor({ postId }: { postId?: number }) {
 
           <div className="border border-line bg-bg2 p-5">
             <h3 className="mb-4 text-xs uppercase tracking-[0.2em] text-accent">Cover image</h3>
+            <p className="mb-3 text-[11px] text-faint">Shown at the top of the post and as the thumbnail on the /blog listing and social share previews.</p>
             <ImageUploadField value={post.cover_image} onChange={(url) => update('cover_image', url)} />
             <label className="mt-4 block">
-              <span className="mb-2 block text-xs uppercase tracking-wide text-muted">Alt text</span>
+              <span className="mb-2 block text-xs uppercase tracking-wide text-muted">
+                Alt text
+                <span className="mt-0.5 block text-[11px] font-normal normal-case tracking-normal text-faint">
+                  Read aloud by screen readers and used by search engines — describe what&apos;s actually in the image, not the post topic.
+                </span>
+              </span>
               <input
                 type="text"
                 value={post.cover_image_alt}
@@ -249,6 +271,7 @@ export function PostEditor({ postId }: { postId?: number }) {
                   Manage categories
                 </Link>
               </div>
+              <p className="mb-2 -mt-1 text-[11px] text-faint">Determines which /blog filter chip this post appears under.</p>
               <select
                 value={post.category}
                 onChange={(e) => update('category', e.target.value)}
@@ -266,7 +289,12 @@ export function PostEditor({ postId }: { postId?: number }) {
               </select>
             </label>
             <label className="mb-4 block">
-              <span className="mb-2 block text-xs uppercase tracking-wide text-muted">Tags</span>
+              <span className="mb-2 block text-xs uppercase tracking-wide text-muted">
+                Tags
+                <span className="mt-0.5 block text-[11px] font-normal normal-case tracking-normal text-faint">
+                  Powers the tag-browsing chips and the &quot;did you mean&quot; suggestions on /blog — press Enter after each one.
+                </span>
+              </span>
               <TagsInput value={post.tags} onChange={(tags) => update('tags', tags)} />
             </label>
             <label className="block">
@@ -280,6 +308,11 @@ export function PostEditor({ postId }: { postId?: number }) {
                   {guestAuthor ? 'Pick from team' : 'Guest author'}
                 </button>
               </div>
+              <p className="mb-2 -mt-1 text-[11px] text-faint">
+                {guestAuthor
+                  ? "A name-only byline, no photo/bio card — for a writer who isn't on the Team page."
+                  : "Attributes this post to a Team member — their photo, bio, and LinkedIn appear in an author card at the end."}
+              </p>
               {guestAuthor ? (
                 <input
                   type="text"
@@ -314,6 +347,10 @@ export function PostEditor({ postId }: { postId?: number }) {
 
           <div className="border border-line bg-bg2 p-5">
             <h3 className="mb-4 text-xs uppercase tracking-[0.2em] text-accent">Premium</h3>
+            <p className="mb-4 text-[11px] leading-relaxed text-faint">
+              Gates the full article behind a subscription service. The title/excerpt/SEO stay public either way — only
+              the article body (this post&apos;s Content field above) is withheld from non-subscribers.
+            </p>
             <label className="mb-4 flex items-center justify-between">
               <span className="text-xs uppercase tracking-wide text-muted">Premium post</span>
               <input
@@ -354,6 +391,10 @@ export function PostEditor({ postId }: { postId?: number }) {
                   {post.meta_title.length}/60
                 </span>
               </div>
+              <p className="mb-2 -mt-1 text-[11px] text-faint">
+                The blue clickable line in Google search results and the browser tab title. Falls back to the post
+                title above if left blank — only override it if you want the SEO title to differ from the on-page headline.
+              </p>
               <input
                 type="text"
                 value={post.meta_title}
@@ -369,6 +410,9 @@ export function PostEditor({ postId }: { postId?: number }) {
                   {post.meta_description.length}/160
                 </span>
               </div>
+              <p className="mb-2 -mt-1 text-[11px] text-faint">
+                The gray snippet text under the title in search results. Falls back to the Excerpt field above if left blank.
+              </p>
               <textarea
                 value={post.meta_description}
                 onChange={(e) => update('meta_description', e.target.value)}

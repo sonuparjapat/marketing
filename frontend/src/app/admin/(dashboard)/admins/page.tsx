@@ -8,6 +8,7 @@ import { TableSkeleton } from '@/components/Skeleton';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Input, Select } from '@/components/ui/Field';
+import { SectionInfo } from '@/components/admin/SectionInfo';
 
 type AdminRow = {
   id: number;
@@ -142,10 +143,14 @@ export default function AdminAdminsPage() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-2 flex items-center justify-between">
         <h1 className="font-serif text-2xl">Admins</h1>
         <Button onClick={openCreate}>+ New admin</Button>
       </div>
+      <SectionInfo
+        description="Manages who can log into this admin panel and what role they hold — Super Admin (unrestricted) or Editor (limited to whatever their assigned Department grants, see the Departments page). Only a Super Admin can see or use this page."
+        example="you hire a content writer who should only touch blog posts, nothing else. You create them an Editor account here, assign them to a 'Content' department (built on the Departments page with only Blog Posts access), and they can log in but literally can't see or reach anything outside that."
+      />
 
       {loading ? (
         <div className="border border-line">
@@ -207,26 +212,34 @@ export default function AdminAdminsPage() {
         }
       >
         <div className="space-y-5">
-          <Input label="Name" value={createForm.name} onChange={(e) => setCreateForm((p) => ({ ...p, name: e.target.value }))} />
+          <Input label="Name" help="Shown in the admin panel header and on every audit log entry they create." value={createForm.name} onChange={(e) => setCreateForm((p) => ({ ...p, name: e.target.value }))} />
           <Input
             label="Email"
+            help="Their login username. Also where any 2FA setup/notification emails go."
             type="email"
             value={createForm.email}
             onChange={(e) => setCreateForm((p) => ({ ...p, email: e.target.value }))}
           />
           <Input
             label="Password (min 8 characters)"
+            help="Their initial login password — share it with them directly; there's no invite-email flow."
             type="password"
             value={createForm.password}
             onChange={(e) => setCreateForm((p) => ({ ...p, password: e.target.value }))}
           />
-          <Select label="Role" value={createForm.role} onChange={(e) => setCreateForm((p) => ({ ...p, role: e.target.value }))}>
+          <Select
+            label="Role"
+            help="Super admin bypasses every permission check — reserve it for people who should truly be able to do anything, including managing other admins."
+            value={createForm.role}
+            onChange={(e) => setCreateForm((p) => ({ ...p, role: e.target.value }))}
+          >
             <option value="editor">Editor — permissions from department</option>
             <option value="super_admin">Super admin — manages everything</option>
           </Select>
           {createForm.role !== 'super_admin' && (
             <Select
               label="Department"
+              help="Which permission bundle (built on the Departments page) this editor inherits. Leaving it unassigned means they can log in but see nothing."
               value={createForm.department_id}
               onChange={(e) => setCreateForm((p) => ({ ...p, department_id: e.target.value }))}
             >
@@ -258,7 +271,12 @@ export default function AdminAdminsPage() {
       >
         <div className="space-y-5">
           <Input label="Name" value={editForm.name} onChange={(e) => setEditForm((p) => ({ ...p, name: e.target.value }))} />
-          <Select label="Role" value={editForm.role} onChange={(e) => setEditForm((p) => ({ ...p, role: e.target.value }))}>
+          <Select
+            label="Role"
+            help="Changing this takes effect the next time they log in, not instantly — their current session keeps its old permissions until then."
+            value={editForm.role}
+            onChange={(e) => setEditForm((p) => ({ ...p, role: e.target.value }))}
+          >
             <option value="editor">Editor — permissions from department</option>
             <option value="super_admin">Super admin — manages everything</option>
           </Select>
@@ -277,14 +295,17 @@ export default function AdminAdminsPage() {
             </Select>
           )}
           {editing?.id !== me?.id && (
-            <label className="flex items-center gap-3">
+            <label className="flex items-start gap-3">
               <input
                 type="checkbox"
                 checked={editForm.is_active}
                 onChange={(e) => setEditForm((p) => ({ ...p, is_active: e.target.checked }))}
-                className="h-4 w-4 accent-accent"
+                className="mt-0.5 h-4 w-4 accent-accent"
               />
-              <span className="text-sm">Active</span>
+              <span>
+                <span className="block text-sm">Active</span>
+                <span className="mt-0.5 block text-[11px] text-faint">Off blocks them from logging in immediately — you can't deactivate your own account here.</span>
+              </span>
             </label>
           )}
         </div>
@@ -307,6 +328,7 @@ export default function AdminAdminsPage() {
       >
         <Input
           label="New password (min 8 characters)"
+          help="Overwrites their current password immediately — no current-password confirmation needed since you're a Super Admin."
           type="password"
           value={newPassword}
           onChange={(e) => setNewPassword(e.target.value)}

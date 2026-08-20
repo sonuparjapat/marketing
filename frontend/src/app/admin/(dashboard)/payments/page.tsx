@@ -8,6 +8,7 @@ import { TableSkeleton } from '@/components/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Pagination } from '@/components/ui/Pagination';
 import { Modal } from '@/components/ui/Modal';
+import { SectionInfo } from '@/components/admin/SectionInfo';
 
 type Payment = {
   id: number;
@@ -92,9 +93,13 @@ export default function AdminPaymentsPage() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-2 flex items-center justify-between">
         <h1 className="font-serif text-2xl">Payments</h1>
       </div>
+      <SectionInfo
+        description="A read-only ledger of every subscription payment attempt — created, paid, failed, or refunded — the money trail behind the Subscription Plans page. Nothing here is editable except Refund, which is a real Razorpay refund, not just a status flag."
+        example={`a customer emails asking for a refund on a plan they bought by mistake. You find their payment here, click Refund — it refunds them via Razorpay and immediately revokes the linked subscription, so they lose access to the premium content that plan granted.`}
+      />
 
       {loading && !items.length ? (
         <div className="border border-line">

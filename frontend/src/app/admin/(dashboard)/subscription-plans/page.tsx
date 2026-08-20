@@ -8,6 +8,7 @@ import { TableSkeleton } from '@/components/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
+import { SectionInfo } from '@/components/admin/SectionInfo';
 
 type ServiceRef = { id: number; key: string; label: string };
 type Plan = {
@@ -148,10 +149,14 @@ export default function AdminSubscriptionPlansPage() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-2 flex items-center justify-between">
         <h1 className="font-serif text-2xl">Subscription Plans</h1>
         {canCreate && <Button onClick={openCreate}>+ New plan</Button>}
       </div>
+      <SectionInfo
+        description="Manages the purchasable plans ('cards') shown on the public /premium pricing page — each one bundles a set of Premium Services and grants access to them for a fixed number of days once paid for via Razorpay. Price/description/active status stay editable any time, but a plan's service bundle locks the moment it has even one active subscriber — see Duplicate below for how to change an offering after that point."
+        example={`you want to sell a "3-Month Growth Pass" bundling the Growth Playbooks and Priority Support services for ₹2,999. You create it here, add both services, turn it Active — it appears on /premium immediately. Once someone buys it, its service list is locked; to add a third service you'd Duplicate it into a new plan instead of editing this one.`}
+      />
 
       {loading && !plans.length ? (
         <div className="border border-line">
@@ -222,7 +227,12 @@ export default function AdminSubscriptionPlansPage() {
       >
         <div className="space-y-5">
           <label className="block">
-            <span className="mb-2 block text-xs uppercase tracking-wide text-muted">Name</span>
+            <span className="mb-2 block text-xs uppercase tracking-wide text-muted">
+              Name
+              <span className="mt-0.5 block text-[11px] font-normal normal-case tracking-normal text-faint">
+                Shown as the plan card&apos;s title on /premium and in every payment/subscription record tied to it.
+              </span>
+            </span>
             <input
               type="text"
               value={form.name}
@@ -232,7 +242,12 @@ export default function AdminSubscriptionPlansPage() {
             />
           </label>
           <label className="block">
-            <span className="mb-2 block text-xs uppercase tracking-wide text-muted">Description</span>
+            <span className="mb-2 block text-xs uppercase tracking-wide text-muted">
+              Description
+              <span className="mt-0.5 block text-[11px] font-normal normal-case tracking-normal text-faint">
+                A short pitch shown under the plan name on the pricing card.
+              </span>
+            </span>
             <textarea
               rows={2}
               value={form.description}
@@ -242,7 +257,12 @@ export default function AdminSubscriptionPlansPage() {
           </label>
           <div className="grid grid-cols-2 gap-4">
             <label className="block">
-              <span className="mb-2 block text-xs uppercase tracking-wide text-muted">Duration (days)</span>
+              <span className="mb-2 block text-xs uppercase tracking-wide text-muted">
+                Duration (days)
+                <span className="mt-0.5 block text-[11px] font-normal normal-case tracking-normal text-faint">
+                  How many days of access a purchase grants, counted from the moment payment is verified.
+                </span>
+              </span>
               <input
                 type="number"
                 value={form.duration_days}
@@ -251,7 +271,12 @@ export default function AdminSubscriptionPlansPage() {
               />
             </label>
             <label className="block">
-              <span className="mb-2 block text-xs uppercase tracking-wide text-muted">Price (₹)</span>
+              <span className="mb-2 block text-xs uppercase tracking-wide text-muted">
+                Price (₹)
+                <span className="mt-0.5 block text-[11px] font-normal normal-case tracking-normal text-faint">
+                  Charged once via Razorpay at checkout. Changing this only affects future purchases — existing subscribers keep what they paid.
+                </span>
+              </span>
               <input
                 type="number"
                 value={form.price_rupees}
@@ -261,14 +286,17 @@ export default function AdminSubscriptionPlansPage() {
               />
             </label>
           </div>
-          <label className="flex items-center gap-3">
+          <label className="flex items-start gap-3">
             <input
               type="checkbox"
               checked={form.is_active}
               onChange={(e) => setForm((f) => ({ ...f, is_active: e.target.checked }))}
-              className="h-4 w-4 accent-accent"
+              className="mt-0.5 h-4 w-4 accent-accent"
             />
-            <span className="text-sm">Active (visible on the pricing page)</span>
+            <span>
+              <span className="block text-sm">Active (visible on the pricing page)</span>
+              <span className="mt-0.5 block text-[11px] text-faint">Off hides this plan from /premium without deleting it — existing subscribers keep their access either way.</span>
+            </span>
           </label>
 
           <div>

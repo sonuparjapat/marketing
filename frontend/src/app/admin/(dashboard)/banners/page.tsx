@@ -11,6 +11,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Input, Textarea, Select } from '@/components/ui/Field';
 import { ImageUploadField } from '@/components/admin/ImageUploadField';
+import { SectionInfo } from '@/components/admin/SectionInfo';
 
 type Banner = {
   id: number;
@@ -143,17 +144,14 @@ export default function AdminBannersPage() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="font-serif text-2xl">Banners</h1>
-          <p className="mt-1 text-xs text-faint">
-            {canUpdate
-              ? 'Drag rows to reorder — controls the homepage hero rotation. Falls back to the standard hero when there are no active banners.'
-              : 'Controls the homepage hero rotation.'}
-          </p>
-        </div>
+      <div className="mb-2 flex items-center justify-between">
+        <h1 className="font-serif text-2xl">Banners</h1>
         {canCreate && <Button onClick={openCreate}>+ New</Button>}
       </div>
+      <SectionInfo
+        description={`Manages the auto-rotating banner slider between the hero headline and the logo strip on the homepage. ${canUpdate ? 'Drag rows to reorder — that order is the rotation order.' : ''} With zero active "hero" banners, the slider section doesn't render at all — the homepage falls back to the plain branded hero copy underneath it.`}
+        example={`you just published a big case study and want to promote it. You add a banner with an image, a "Read the story" button linking to /work/that-case-study, placement "Homepage hero rotation", turn it Active — it starts rotating into view on the next homepage load.`}
+      />
 
       {loading ? (
         <div className="border border-line">
@@ -235,18 +233,30 @@ export default function AdminBannersPage() {
       >
         <div className="space-y-5">
           <label className="block">
-            <span className="mb-2 block text-xs uppercase tracking-wide text-muted">Image</span>
+            <span className="mb-2 block text-xs uppercase tracking-wide text-muted">
+              Image
+              <span className="mt-0.5 block text-[11px] font-normal normal-case tracking-normal text-faint">
+                The full-width banner background — a wide, landscape image works best (it&apos;s cropped to the slider&apos;s aspect ratio).
+              </span>
+            </span>
             <ImageUploadField value={form.image_url} onChange={(url) => setForm((p) => ({ ...p, image_url: url }))} />
           </label>
           <Input
             label="Tag label (optional)"
+            help="A small pill/eyebrow shown above the title, e.g. to flag what kind of banner this is."
             value={form.tag_label || ''}
             onChange={(e) => setForm((p) => ({ ...p, tag_label: e.target.value }))}
             placeholder="e.g. Case Study · Q4 Results"
           />
-          <Input label="Title" value={form.title} onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))} />
+          <Input
+            label="Title"
+            help="The large headline text overlaid on the banner image."
+            value={form.title}
+            onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
+          />
           <Textarea
             label="Subtitle (optional)"
+            help="Smaller supporting text shown under the title."
             rows={2}
             value={form.subtitle || ''}
             onChange={(e) => setForm((p) => ({ ...p, subtitle: e.target.value }))}
@@ -254,12 +264,14 @@ export default function AdminBannersPage() {
           <div className="grid grid-cols-2 gap-4">
             <Input
               label="Button label (optional)"
+              help="Text on the call-to-action button. Leave both button fields empty for a banner with no button."
               value={form.button_label || ''}
               onChange={(e) => setForm((p) => ({ ...p, button_label: e.target.value }))}
               placeholder="Read the story"
             />
             <Input
               label="Button link (optional)"
+              help="Where the button goes — an internal path like /work/slug, or a full https:// URL."
               value={form.button_link || ''}
               onChange={(e) => setForm((p) => ({ ...p, button_link: e.target.value }))}
               placeholder="/work/some-case-study"
@@ -267,20 +279,24 @@ export default function AdminBannersPage() {
           </div>
           <Select
             label="Placement"
+            help="Which section of the homepage this banner can rotate into."
             value={form.placement}
             onChange={(e) => setForm((p) => ({ ...p, placement: e.target.value as 'hero' | 'promo' }))}
           >
             <option value="hero">Homepage hero rotation</option>
             <option value="promo">Promo strip</option>
           </Select>
-          <label className="flex items-center gap-3">
+          <label className="flex items-start gap-3">
             <input
               type="checkbox"
               checked={form.is_active}
               onChange={(e) => setForm((p) => ({ ...p, is_active: e.target.checked }))}
-              className="h-4 w-4 accent-accent"
+              className="mt-0.5 h-4 w-4 accent-accent"
             />
-            <span className="text-sm">Active (visible on site)</span>
+            <span>
+              <span className="block text-sm">Active (visible on site)</span>
+              <span className="mt-0.5 block text-[11px] text-faint">Off removes it from the rotation without deleting it — handy for pausing a seasonal banner.</span>
+            </span>
           </label>
         </div>
       </Modal>
