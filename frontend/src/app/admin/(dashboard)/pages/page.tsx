@@ -63,8 +63,15 @@ export default function AdminPagesPage() {
   return (
     <div>
       <h1 className="mb-6 font-serif text-2xl">Pages</h1>
-      <p className="mb-8 text-sm text-muted">
-        These pages are fixed by the site&apos;s routes — edit their content below.
+      <p className="mb-8 text-sm leading-relaxed text-muted">
+        <strong className="text-fg">What this does:</strong> edits the content of the site&apos;s fixed legal/info pages
+        (About, Privacy Policy, Terms, Refund Policy). Their URLs are hardcoded into the site&apos;s routing, so you can
+        rewrite what each page says but can&apos;t add a new one or change its address from here.
+        <br />
+        <span className="text-faint">
+          Example: your cancellation notice period changes from 30 to 15 days. Open the Refund Policy card, update the
+          wording in Content, save — the public /refund-policy page reflects the new text immediately.
+        </span>
       </p>
 
       {loading ? (
@@ -94,7 +101,12 @@ export default function AdminPagesPage() {
             <h2 className="mb-6 font-serif text-xl">Edit {active.title}</h2>
             <div className="space-y-5">
               <label className="block">
-                <span className="mb-2 block text-xs uppercase tracking-wide text-muted">Title</span>
+                <span className="mb-2 block text-xs uppercase tracking-wide text-muted">
+                  Title
+                  <span className="mt-0.5 block text-[11px] font-normal normal-case tracking-normal text-faint">
+                    The on-page heading shown at the top of /{active.slug} — the URL itself doesn&apos;t change.
+                  </span>
+                </span>
                 <input
                   type="text"
                   value={form.title || ''}
@@ -107,7 +119,12 @@ export default function AdminPagesPage() {
                 <RichTextEditor value={form.content || ''} onChange={(html) => setForm((p) => ({ ...p, content: html }))} />
               </label>
               <label className="block">
-                <span className="mb-2 block text-xs uppercase tracking-wide text-muted">Meta title (SEO)</span>
+                <span className="mb-2 block text-xs uppercase tracking-wide text-muted">
+                  Meta title (SEO)
+                  <span className="mt-0.5 block text-[11px] font-normal normal-case tracking-normal text-faint">
+                    The browser tab title and search-result headline. Falls back to Title above if left blank.
+                  </span>
+                </span>
                 <input
                   type="text"
                   value={form.meta_title || ''}
@@ -116,7 +133,12 @@ export default function AdminPagesPage() {
                 />
               </label>
               <label className="block">
-                <span className="mb-2 block text-xs uppercase tracking-wide text-muted">Meta description (SEO)</span>
+                <span className="mb-2 block text-xs uppercase tracking-wide text-muted">
+                  Meta description (SEO)
+                  <span className="mt-0.5 block text-[11px] font-normal normal-case tracking-normal text-faint">
+                    The gray snippet text under the title in search results.
+                  </span>
+                </span>
                 <textarea
                   rows={2}
                   value={form.meta_description || ''}

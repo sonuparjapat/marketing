@@ -93,7 +93,7 @@ export default function AdminPostsPage() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-2 flex items-center justify-between">
         <h1 className="font-serif text-2xl">Blog Posts</h1>
         {hasPermission('posts.create') && (
           <Link href="/admin/posts/new" className="bg-accent px-5 py-2.5 text-sm font-bold text-bg hover:opacity-90">
@@ -101,6 +101,10 @@ export default function AdminPostsPage() {
           </Link>
         )}
       </div>
+      <SectionInfo
+        description="The list of every blog post, published or draft. Click a post to open the full editor; the Status button here is a shortcut to publish/unpublish without opening it."
+        example={`you spot a typo in a live post's title from this list. Click it to open the editor, fix it, save — no need to touch anything else here.`}
+      />
 
       <div className="mb-5 flex flex-wrap gap-3">
         <input
