@@ -58,6 +58,7 @@ export type Post = {
   author: string;
   views: number;
   created_at: string;
+  updated_at: string;
 };
 
 export type PostDetail = Post & {
@@ -69,6 +70,9 @@ export type PostDetail = Post & {
   author_bio: string | null;
   author_linkedin_url: string | null;
   related: Pick<Post, 'id' | 'title' | 'slug' | 'excerpt' | 'cover_image' | 'cover_image_alt'>[];
+  like_count: number;
+  dislike_count: number;
+  my_vote: 'like' | 'dislike' | null;
 };
 
 export type BlogCategory = { id: number; name: string; slug: string; sort_order: number };
@@ -148,6 +152,8 @@ export async function getAllPosts(): Promise<Post[]> {
   return all;
 }
 export const getBlogCategories = () => fetchApi<BlogCategory[]>('/blog-categories').catch(() => []);
+export type PostTag = { tag: string; count: number };
+export const getTags = () => fetchApi<PostTag[]>('/posts/tags').catch(() => []);
 
 export const getTeam = () => fetchApi<TeamMember[]>('/team').catch(() => []);
 
@@ -159,7 +165,16 @@ export const getNavLinks = () =>
 export const getHomepageStats = () => fetchApi<HomepageStat[]>('/homepage-stats').catch(() => []);
 export const getWhyUs = () => fetchApi<WhyUsPoint[]>('/why-us').catch(() => []);
 export const getClientLogos = () => fetchApi<ClientLogo[]>('/client-logos').catch(() => []);
-export type PostComment = { id: number; content: string; created_at: string; customer_name: string };
+export type PostComment = {
+  id: number;
+  content: string;
+  created_at: string;
+  customer_name: string;
+  parent_id: number | null;
+  like_count: number;
+  dislike_count: number;
+  my_vote: 'like' | 'dislike' | null;
+};
 export const getComments = (slug: string) => fetchApi<PostComment[]>(`/comments/${slug}`, 0).catch(() => []);
 export const getBanners = (placement: 'hero' | 'promo' = 'hero') =>
   fetchApi<Banner[]>(`/banners?placement=${placement}`).catch(() => []);

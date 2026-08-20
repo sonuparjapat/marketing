@@ -1,39 +1,65 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
-import { getPosts, getBlogCategories } from '@/lib/api';
+import { getPosts, getBlogCategories, getTags } from '@/lib/api';
 
-export const metadata: Metadata = {
-  title: 'Blog',
-  description: 'Practical notes on performance marketing, SEO and building D2C brands in India.',
-  alternates: { canonical: '/blog' },
-};
+type BlogSearchParams = { category?: string; tag?: string; q?: string; page?: string; sort?: string };
 
-export default async function BlogPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ category?: string; q?: string; page?: string }>;
-}) {
-  const { category, q, page: pageParam } = await searchParams;
+// A dynamic canonical is required here, not a static one — /blog?page=2 and /blog?category=X are
+// genuinely different content and each needs to self-canonicalize (previously every variant of this
+// page falsely claimed /blog as canonical, a real duplicate-content signal). Search-result pages
+// (?q=) are excluded from the canonical param set and explicitly noindexed — a search result page
+// has no stable value to a crawler and shouldn't compete with the real blog index for ranking.
+export async function generateMetadata({ searchParams }: { searchParams: Promise<BlogSearchParams> }): Promise<Metadata> {
+  const { category, tag, q, page: pageParam } = await searchParams;
+  const page = Math.max(1, parseInt(pageParam || '1', 10) || 1);
+
+  const params = new URLSearchParams();
+  if (category) params.set('category', category);
+  if (tag) params.set('tag', tag);
+  if (page > 1) params.set('page', String(page));
+  const canonical = params.toString() ? `/blog?${params.toString()}` : '/blog';
+
+  return {
+    title: category ? `${category} — Blog` : tag ? `#${tag} — Blog` : 'Blog',
+    description: 'Practical notes on performance marketing, SEO and building D2C brands in India.',
+    alternates: { canonical },
+    robots: q ? { index: false, follow: true } : undefined,
+  };
+}
+
+export default async function BlogPage({ searchParams }: { searchParams: Promise<BlogSearchParams> }) {
+  const { category, tag, q, page: pageParam, sort } = await searchParams;
   const page = Math.max(1, parseInt(pageParam || '1', 10) || 1);
 
   const query = new URLSearchParams();
   if (category) query.set('category', category);
+  if (tag) query.set('tag', tag);
   if (q) query.set('search', q);
+  if (sort === 'trending') query.set('sort', 'trending');
   query.set('page', String(page));
 
-  const [{ items: posts, total, limit }, categories] = await Promise.all([
+  const [{ items: posts, total, limit }, categories, tags] = await Promise.all([
     getPosts(`?${query.toString()}`),
     getBlogCategories(),
+    getTags(),
   ]);
 
   const totalPages = Math.max(1, Math.ceil(total / limit));
-  const showFeatured = page === 1 && !category && !q;
+  const showFeatured = page === 1 && !category && !tag && !q && sort !== 'trending';
   const [featured, ...rest] = showFeatured ? posts : [undefined, ...posts];
 
   const pageHref = (n: number) => {
     const p = new URLSearchParams(query);
     p.set('page', String(n));
+    return `/blog?${p.toString()}`;
+  };
+
+  const sortHref = (nextSort: 'latest' | 'trending') => {
+    const p = new URLSearchParams(query);
+    p.delete('page');
+    if (nextSort === 'trending') p.set('sort', 'trending');
+    else p.delete('sort');
     return `/blog?${p.toString()}`;
   };
 
@@ -68,21 +94,53 @@ export default async function BlogPage({
           </form>
         </div>
 
-        {categories.length > 0 && (
-          <div className="mb-14 flex flex-wrap gap-2">
-            <Link
-              href="/blog"
-              className={`rounded-full px-4 py-2 text-xs uppercase tracking-wide transition-all ${!category ? 'bg-accent text-bg' : 'border border-line-soft text-muted hover:-translate-y-0.5 hover:border-accent hover:text-accent'}`}
-            >
-              All
-            </Link>
-            {categories.map((c) => (
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+          {categories.length > 0 && (
+            <div className="flex flex-wrap gap-2">
               <Link
-                key={c.id}
-                href={`/blog?category=${encodeURIComponent(c.name)}`}
-                className={`rounded-full px-4 py-2 text-xs uppercase tracking-wide transition-all ${category === c.name ? 'bg-accent text-bg' : 'border border-line-soft text-muted hover:-translate-y-0.5 hover:border-accent hover:text-accent'}`}
+                href="/blog"
+                className={`rounded-full px-4 py-2 text-xs uppercase tracking-wide transition-all ${!category ? 'bg-accent text-bg' : 'border border-line-soft text-muted hover:-translate-y-0.5 hover:border-accent hover:text-accent'}`}
               >
-                {c.name}
+                All
+              </Link>
+              {categories.map((c) => (
+                <Link
+                  key={c.id}
+                  href={`/blog?category=${encodeURIComponent(c.name)}`}
+                  className={`rounded-full px-4 py-2 text-xs uppercase tracking-wide transition-all ${category === c.name ? 'bg-accent text-bg' : 'border border-line-soft text-muted hover:-translate-y-0.5 hover:border-accent hover:text-accent'}`}
+                >
+                  {c.name}
+                </Link>
+              ))}
+            </div>
+          )}
+
+          <div className="flex gap-1 rounded-full border border-line-soft p-1 text-xs">
+            <Link
+              href={sortHref('latest')}
+              className={`rounded-full px-3.5 py-1.5 uppercase tracking-wide transition-colors ${sort !== 'trending' ? 'bg-accent text-bg' : 'text-muted hover:text-accent'}`}
+            >
+              Latest
+            </Link>
+            <Link
+              href={sortHref('trending')}
+              className={`rounded-full px-3.5 py-1.5 uppercase tracking-wide transition-colors ${sort === 'trending' ? 'bg-accent text-bg' : 'text-muted hover:text-accent'}`}
+            >
+              Most read
+            </Link>
+          </div>
+        </div>
+
+        {tags.length > 0 && (
+          <div className="mb-14 flex flex-wrap gap-2">
+            {tags.slice(0, 14).map((t) => (
+              <Link
+                key={t.tag}
+                href={`/blog?tag=${encodeURIComponent(t.tag)}`}
+                className={`rounded-md px-3 py-1.5 text-[11px] transition-colors ${tag === t.tag ? 'bg-accent/15 text-accent' : 'text-faint hover:text-accent'}`}
+              >
+                #{t.tag}
+                <span className="ml-1 text-faint">{t.count}</span>
               </Link>
             ))}
           </div>

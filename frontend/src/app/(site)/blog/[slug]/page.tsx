@@ -8,6 +8,7 @@ import { highlightCodeBlocks } from '@/lib/highlightCode';
 import { ReadingProgressBar } from '@/components/ReadingProgressBar';
 import { ShareButtons } from '@/components/ShareButtons';
 import { CommentSection } from '@/components/CommentSection';
+import { PostVoteButtons } from '@/components/PostVoteButtons';
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
@@ -92,6 +93,10 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
           <span>{readingTime} min read</span>
           <span>&middot;</span>
           <span>{post.views} views</span>
+        </div>
+
+        <div className="mb-10">
+          <PostVoteButtons slug={slug} initialLikeCount={post.like_count} initialDislikeCount={post.dislike_count} />
         </div>
 
         {post.cover_image && (

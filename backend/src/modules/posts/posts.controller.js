@@ -29,7 +29,7 @@ const listPosts = asyncHandler(async (req, res) => {
   const orderBy = req.query.sort === 'trending' ? 'views DESC, created_at DESC' : 'created_at DESC';
   const totalResult = await pool.query(`SELECT COUNT(*)::int AS count FROM posts ${where}`, params);
   const dataResult = await pool.query(
-    `SELECT id, title, slug, excerpt, cover_image, cover_image_alt, category, tags, author, views, created_at
+    `SELECT id, title, slug, excerpt, cover_image, cover_image_alt, category, tags, author, views, created_at, updated_at
      FROM posts ${where} ORDER BY ${orderBy} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
     [...params, limit, offset]
   );
@@ -58,15 +58,85 @@ const getPost = asyncHandler(async (req, res) => {
     [req.params.slug]
   );
   if (!result.rows[0]) return fail(res, 'Post not found', 404);
+  const post = result.rows[0];
 
-  await pool.query('UPDATE posts SET views = views + 1 WHERE id = $1', [result.rows[0].id]);
-  const related = await pool.query(
-    `SELECT id, title, slug, excerpt, cover_image, cover_image_alt FROM posts
-     WHERE category = $1 AND id != $2 AND is_published = TRUE ORDER BY created_at DESC LIMIT 3`,
-    [result.rows[0].category, result.rows[0].id]
+  const [, related, voteCounts, myVote] = await Promise.all([
+    pool.query('UPDATE posts SET views = views + 1 WHERE id = $1', [post.id]),
+    pool.query(
+      `SELECT id, title, slug, excerpt, cover_image, cover_image_alt FROM posts
+       WHERE category = $1 AND id != $2 AND is_published = TRUE ORDER BY created_at DESC LIMIT 3`,
+      [post.category, post.id]
+    ),
+    pool.query(
+      `SELECT
+         COUNT(*) FILTER (WHERE vote_type = 'like')::int AS like_count,
+         COUNT(*) FILTER (WHERE vote_type = 'dislike')::int AS dislike_count
+       FROM post_votes WHERE post_id = $1`,
+      [post.id]
+    ),
+    req.customer
+      ? pool.query('SELECT vote_type FROM post_votes WHERE post_id = $1 AND customer_id = $2', [post.id, req.customer.id])
+      : Promise.resolve({ rows: [] }),
+  ]);
+
+  ok(res, {
+    ...post,
+    views: post.views + 1,
+    related: related.rows,
+    like_count: voteCounts.rows[0].like_count,
+    dislike_count: voteCounts.rows[0].dislike_count,
+    my_vote: myVote.rows[0]?.vote_type || null,
+  });
+});
+
+// Toggling the same vote_type again removes it (undo); switching from like to dislike (or back)
+// updates the existing row via ON CONFLICT rather than erroring on the UNIQUE(post_id, customer_id).
+// A lightweight companion to getPost — the post detail page is fetched server-side (no access to
+// the visitor's Bearer token, which lives in browser localStorage, not a cookie the server forward
+// automatically), so "did I already vote" has to be fetched separately, client-side, once
+// useCustomerAuth() confirms someone is actually signed in.
+const getMyPostVote = asyncHandler(async (req, res) => {
+  const post = await pool.query('SELECT id FROM posts WHERE slug = $1', [req.params.slug]);
+  if (!post.rows[0]) return fail(res, 'Post not found', 404);
+
+  const result = await pool.query('SELECT vote_type FROM post_votes WHERE post_id = $1 AND customer_id = $2', [
+    post.rows[0].id,
+    req.customer.id,
+  ]);
+  ok(res, { vote_type: result.rows[0]?.vote_type || null });
+});
+
+const voteOnPost = asyncHandler(async (req, res) => {
+  const { vote_type } = req.body;
+  if (!['like', 'dislike'].includes(vote_type)) return fail(res, "vote_type must be 'like' or 'dislike'", 400);
+
+  const post = await pool.query('SELECT id FROM posts WHERE slug = $1', [req.params.slug]);
+  if (!post.rows[0]) return fail(res, 'Post not found', 404);
+
+  const existing = await pool.query('SELECT vote_type FROM post_votes WHERE post_id = $1 AND customer_id = $2', [
+    post.rows[0].id,
+    req.customer.id,
+  ]);
+
+  if (existing.rows[0]?.vote_type === vote_type) {
+    await pool.query('DELETE FROM post_votes WHERE post_id = $1 AND customer_id = $2', [post.rows[0].id, req.customer.id]);
+  } else {
+    await pool.query(
+      `INSERT INTO post_votes (post_id, customer_id, vote_type) VALUES ($1, $2, $3)
+       ON CONFLICT (post_id, customer_id) DO UPDATE SET vote_type = $3`,
+      [post.rows[0].id, req.customer.id, vote_type]
+    );
+  }
+
+  const counts = await pool.query(
+    `SELECT
+       COUNT(*) FILTER (WHERE vote_type = 'like')::int AS like_count,
+       COUNT(*) FILTER (WHERE vote_type = 'dislike')::int AS dislike_count
+     FROM post_votes WHERE post_id = $1`,
+    [post.rows[0].id]
   );
-
-  ok(res, { ...result.rows[0], views: result.rows[0].views + 1, related: related.rows });
+  const myVote = existing.rows[0]?.vote_type === vote_type ? null : vote_type;
+  ok(res, { like_count: counts.rows[0].like_count, dislike_count: counts.rows[0].dislike_count, my_vote: myVote });
 });
 
 const allowedFields = [
@@ -117,7 +187,10 @@ const updatePost = asyncHandler(async (req, res, next) => {
 
 module.exports = {
   listPosts,
+  listTags,
   getPost,
+  getMyPostVote,
+  voteOnPost,
   adminList: adminListPosts,
   adminGetOne: adminCrud.getOne,
   createPost,
