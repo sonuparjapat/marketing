@@ -325,6 +325,12 @@ async function initDB() {
     // submission sets customer_id and starts unapproved until admin flips is_approved.
     await client.query(`ALTER TABLE testimonials ADD COLUMN IF NOT EXISTS customer_id INT REFERENCES customers(id) ON DELETE SET NULL;`);
     await client.query(`ALTER TABLE testimonials ADD COLUMN IF NOT EXISTS is_approved BOOLEAN DEFAULT TRUE;`);
+    // home_sort_order is NULL for "not shown on the homepage" and 1..5 for "shown, in this
+    // position" — replaces the old plain is_featured boolean as the homepage curation mechanism,
+    // since a boolean can't express "which 5, in what order" or enforce a cap. Set exclusively via
+    // PUT /admin/testimonials/homepage-selection (backend/src/modules/testimonials), never the
+    // generic admin CRUD, so the 5-max/ordering invariant only has one place it can be violated.
+    await client.query(`ALTER TABLE testimonials ADD COLUMN IF NOT EXISTS home_sort_order INT;`);
 
     // Blog comments — auto-published (no moderation queue), with an admin delete-after-the-fact
     // affordance instead. Deleting the post or the commenting customer cascades the comment away.
@@ -520,10 +526,13 @@ async function initDB() {
     // time (status = 'active' AND expires_at > NOW()), never eagerly flipped by a cron. Buying
     // again before expiry is allowed and simply adds another row; entitlement is the union of
     // every currently-unexpired row for that customer, so an early renewal never loses access.
+    // customer_id deliberately has NO ON DELETE CASCADE (unlike comments/tickets above) — this is
+    // a financial/billing record, not user-generated content, and deleteAccount() explicitly
+    // blocks self-deletion while payment history exists rather than silently destroying it.
     await client.query(`
       CREATE TABLE IF NOT EXISTS customer_subscriptions (
         id            SERIAL PRIMARY KEY,
-        customer_id   INT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+        customer_id   INT NOT NULL REFERENCES customers(id),
         plan_id       INT NOT NULL REFERENCES subscription_plans(id),
         started_at    TIMESTAMP NOT NULL DEFAULT NOW(),
         expires_at    TIMESTAMP NOT NULL,
@@ -539,10 +548,11 @@ async function initDB() {
     // razorpay_order_id is unique — a customer retrying a failed checkout for the same plan starts
     // a fresh row/fresh Razorpay order rather than reusing one, so there's never ambiguity about
     // which attempt a given payment_id belongs to.
+    // Same reasoning as customer_subscriptions above — no cascade on a financial record.
     await client.query(`
       CREATE TABLE IF NOT EXISTS payments (
         id                    SERIAL PRIMARY KEY,
-        customer_id           INT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+        customer_id           INT NOT NULL REFERENCES customers(id),
         plan_id               INT NOT NULL REFERENCES subscription_plans(id),
         razorpay_order_id     VARCHAR(100) UNIQUE NOT NULL,
         razorpay_payment_id   VARCHAR(100),

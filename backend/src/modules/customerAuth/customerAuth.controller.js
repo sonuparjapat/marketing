@@ -246,7 +246,14 @@ const exportData = asyncHandler(async (req, res) => {
 // Self-service account deletion — permanent, no confirmation email step (the customer is already
 // authenticated when they call this). The row is gone, so there's nothing left to token_version-bump;
 // the next request with this token 404s the account lookup in customerAuth and is rejected there.
+// Blocked while any billing history exists (payments.customer_id has no ON DELETE CASCADE, unlike
+// comments/reviews/tickets — a payment/subscription record is a financial document, not user
+// content, and needs to survive account deletion for the admin payment log to stay meaningful).
 const deleteAccount = asyncHandler(async (req, res) => {
+  const paymentCheck = await pool.query('SELECT 1 FROM payments WHERE customer_id = $1 LIMIT 1', [req.customer.id]);
+  if (paymentCheck.rows.length > 0) {
+    return fail(res, 'This account has billing history and can’t be self-deleted — contact support to close it.', 400);
+  }
   await pool.query('DELETE FROM customers WHERE id = $1', [req.customer.id]);
   res.clearCookie('customer_token');
   ok(res, { deleted: true });
