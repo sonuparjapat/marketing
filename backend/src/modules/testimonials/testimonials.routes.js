@@ -1,9 +1,10 @@
 const express = require('express');
 const ctrl = require('./testimonials.controller');
-const { adminAuth, checkPermission } = require('../../middleware/auth');
+const { adminAuth, checkPermission, customerAuth } = require('../../middleware/auth');
 
 const publicRouter = express.Router();
 publicRouter.get('/', ctrl.listTestimonials);
+publicRouter.post('/', customerAuth, ctrl.submitReview);
 
 const adminRouter = express.Router();
 adminRouter.get('/', adminAuth, checkPermission('testimonials.read'), ctrl.adminList);

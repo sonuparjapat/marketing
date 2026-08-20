@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCustomerAuth } from '@/context/CustomerAuthContext';
 import customerApiClient from '@/lib/customerApiClient';
@@ -20,6 +21,24 @@ export default function AccountPage() {
   const [deleting, setDeleting] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState('');
+  const [rating, setRating] = useState(5);
+  const [review, setReview] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [reviewDone, setReviewDone] = useState(false);
+
+  const onSubmitReview = async () => {
+    if (!review.trim()) return;
+    setSubmittingReview(true);
+    try {
+      await customerApiClient.post('/testimonials', { rating, review });
+      setReviewDone(true);
+      setReview('');
+    } catch (err) {
+      setError(errMessage(err, 'Could not submit your review.'));
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
 
   const onExport = async () => {
     setExporting(true);
@@ -74,6 +93,56 @@ export default function AccountPage() {
           <div className="mb-5">{customer.name}</div>
           <div className="mb-1 text-xs uppercase tracking-wide text-faint">Email</div>
           <div>{customer.email}</div>
+        </div>
+
+        <div className="glass mb-8 flex flex-wrap items-center justify-between gap-4 rounded-2xl p-7">
+          <div>
+            <div className="mb-1 font-semibold">Support</div>
+            <p className="text-sm text-muted">View your open tickets or start a new one.</p>
+          </div>
+          <Link
+            href="/account/support"
+            className="shrink-0 rounded-lg border border-line-soft px-5 py-2.5 text-sm transition-colors hover:border-accent hover:text-accent"
+          >
+            View tickets
+          </Link>
+        </div>
+
+        <div className="glass mb-8 rounded-2xl p-7">
+          <div className="mb-1 font-semibold">Leave a review</div>
+          <p className="mb-5 text-sm text-muted">Submitted reviews are checked before they go live on the site.</p>
+          {reviewDone ? (
+            <p className="text-sm text-accent">Thanks — your review is pending approval.</p>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex gap-1.5">
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <button
+                    key={n}
+                    onClick={() => setRating(n)}
+                    aria-label={`${n} stars`}
+                    className={`text-2xl transition-colors ${n <= rating ? 'text-accent' : 'text-line'}`}
+                  >
+                    ★
+                  </button>
+                ))}
+              </div>
+              <textarea
+                rows={3}
+                value={review}
+                onChange={(e) => setReview(e.target.value)}
+                placeholder="Tell us about your experience…"
+                className="w-full resize-none rounded-lg border border-line-soft bg-bg2 px-4 py-3 text-sm placeholder:text-faint focus:border-accent focus:outline-none"
+              />
+              <button
+                onClick={onSubmitReview}
+                disabled={submittingReview || !review.trim()}
+                className="rounded-lg bg-accent px-5 py-2.5 text-sm font-bold text-bg disabled:opacity-60"
+              >
+                {submittingReview ? 'Submitting…' : 'Submit review'}
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="glass mb-8 flex flex-wrap items-center justify-between gap-4 rounded-2xl p-7">

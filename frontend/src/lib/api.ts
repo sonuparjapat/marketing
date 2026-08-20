@@ -159,6 +159,8 @@ export const getNavLinks = () =>
 export const getHomepageStats = () => fetchApi<HomepageStat[]>('/homepage-stats').catch(() => []);
 export const getWhyUs = () => fetchApi<WhyUsPoint[]>('/why-us').catch(() => []);
 export const getClientLogos = () => fetchApi<ClientLogo[]>('/client-logos').catch(() => []);
+export type PostComment = { id: number; content: string; created_at: string; customer_name: string };
+export const getComments = (slug: string) => fetchApi<PostComment[]>(`/comments/${slug}`, 0).catch(() => []);
 export const getBanners = (placement: 'hero' | 'promo' = 'hero') =>
   fetchApi<Banner[]>(`/banners?placement=${placement}`).catch(() => []);
 export const getFaqs = (category?: string) =>

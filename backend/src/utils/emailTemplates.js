@@ -46,6 +46,20 @@ const subscriberWelcome = () =>
     `<p>Thanks for joining our newsletter. Expect practical, no-fluff notes on D2C growth, performance marketing and SEO — a couple of times a month, never spam.</p>`
   );
 
+const ticketAdminAlert = (ticket, customer) =>
+  wrapper(
+    'New support ticket',
+    `<p><strong>${customer.name}</strong> (${customer.email}) opened a ticket:</p>
+     <p style="font-weight:bold;">${ticket.subject}</p>`
+  );
+
+const ticketReplyNotification = (customerName, ticketSubject, ticketUrl) =>
+  wrapper(
+    `New reply on your ticket, ${customerName}`,
+    `<p>There's a new reply on your support ticket: <strong>${ticketSubject}</strong>.</p>
+     <p style="margin:24px 0;"><a href="${ticketUrl}" style="background:#d4af6a;color:#14171f;padding:12px 22px;border-radius:4px;text-decoration:none;font-weight:bold;">View the reply</a></p>`
+  );
+
 const customerPasswordReset = (name, resetUrl) =>
   wrapper(
     `Reset your password, ${name}`,
@@ -61,4 +75,6 @@ module.exports = {
   callbackAdminAlert,
   subscriberWelcome,
   customerPasswordReset,
+  ticketAdminAlert,
+  ticketReplyNotification,
 };

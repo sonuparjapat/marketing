@@ -70,6 +70,8 @@ const login = asyncHandler(async (req, res) => {
   const match = await bcrypt.compare(password, customer.password_hash);
   if (!match) return fail(res, 'Invalid credentials', 401);
 
+  await pool.query('UPDATE customers SET last_login = NOW() WHERE id = $1', [customer.id]);
+
   const token = issueSession(res, customer);
   ok(res, { token, customer: profileOf(customer) });
 });

@@ -125,7 +125,6 @@ async function initDB() {
         is_active            BOOLEAN DEFAULT TRUE
       );
     `);
-
     await client.query(`
       CREATE TABLE IF NOT EXISTS team (
         id             SERIAL PRIMARY KEY,
@@ -313,6 +312,54 @@ async function initDB() {
     // already-issued JWT for that account (password change, account deletion) without needing a
     // token blacklist/Redis; auth middleware checks it against the DB on every request.
     await client.query(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS token_version INT DEFAULT 1;`);
+    await client.query(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS last_login TIMESTAMP;`);
+
+    // Customer-submitted reviews reuse the testimonials table rather than a parallel one —
+    // customer_id NULL means admin-authored (auto-approved, unchanged prior behavior); a customer
+    // submission sets customer_id and starts unapproved until admin flips is_approved.
+    await client.query(`ALTER TABLE testimonials ADD COLUMN IF NOT EXISTS customer_id INT REFERENCES customers(id) ON DELETE SET NULL;`);
+    await client.query(`ALTER TABLE testimonials ADD COLUMN IF NOT EXISTS is_approved BOOLEAN DEFAULT TRUE;`);
+
+    // Blog comments — auto-published (no moderation queue), with an admin delete-after-the-fact
+    // affordance instead. Deleting the post or the commenting customer cascades the comment away.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS comments (
+        id             SERIAL PRIMARY KEY,
+        post_id        INT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+        customer_id    INT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+        content        TEXT NOT NULL,
+        created_at     TIMESTAMP DEFAULT NOW()
+      );
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_comments_post ON comments(post_id, created_at);`);
+
+    // Support tickets — a customer opens one (with its first message), admin replies land as more
+    // rows in ticket_messages. Real-time is admin-side only (existing Socket.IO room); the customer
+    // finds out about a reply by email, not a live connection.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS support_tickets (
+        id             SERIAL PRIMARY KEY,
+        customer_id    INT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+        subject        VARCHAR(200) NOT NULL,
+        status         VARCHAR(20) DEFAULT 'open',
+        created_at     TIMESTAMP DEFAULT NOW(),
+        updated_at     TIMESTAMP DEFAULT NOW()
+      );
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_support_tickets_customer ON support_tickets(customer_id, created_at DESC);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_support_tickets_status ON support_tickets(status);`);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS ticket_messages (
+        id             SERIAL PRIMARY KEY,
+        ticket_id      INT NOT NULL REFERENCES support_tickets(id) ON DELETE CASCADE,
+        sender_type    VARCHAR(10) NOT NULL CHECK (sender_type IN ('customer', 'admin')),
+        sender_id      INT NOT NULL,
+        message        TEXT NOT NULL,
+        created_at     TIMESTAMP DEFAULT NOW()
+      );
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_ticket_messages_ticket ON ticket_messages(ticket_id, created_at);`);
 
     await client.query(`ALTER TABLE admins ALTER COLUMN role SET DEFAULT 'editor';`);
     await client.query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;`);
@@ -414,11 +461,14 @@ const PERMISSION_MODULES = [
   { key: 'leads', label: 'Leads', group: 'Inbox' },
   { key: 'callbacks', label: 'Callbacks', group: 'Inbox' },
   { key: 'subscribers', label: 'Subscribers', group: 'Inbox' },
+  { key: 'customers', label: 'Customers', group: 'Inbox' },
+  { key: 'support_tickets', label: 'Support Tickets', group: 'Inbox' },
   { key: 'posts', label: 'Blog Posts', group: 'Content' },
   { key: 'blog_categories', label: 'Blog Categories', group: 'Content' },
   { key: 'case_studies', label: 'Case Studies', group: 'Content' },
   { key: 'services', label: 'Services', group: 'Content' },
   { key: 'testimonials', label: 'Testimonials', group: 'Content' },
+  { key: 'comments', label: 'Comments', group: 'Content' },
   { key: 'team', label: 'Team', group: 'Content' },
   { key: 'faqs', label: 'FAQs', group: 'Content' },
   { key: 'pages', label: 'Pages', group: 'Content' },

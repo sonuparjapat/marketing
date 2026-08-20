@@ -2,11 +2,12 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
-import { getPost } from '@/lib/api';
+import { getPost, getComments } from '@/lib/api';
 import { extractHeadings } from '@/lib/toc';
 import { highlightCodeBlocks } from '@/lib/highlightCode';
 import { ReadingProgressBar } from '@/components/ReadingProgressBar';
 import { ShareButtons } from '@/components/ShareButtons';
+import { CommentSection } from '@/components/CommentSection';
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
@@ -28,7 +29,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function BlogPostPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const post = await getPost(slug);
+  const [post, comments] = await Promise.all([getPost(slug), getComments(slug)]);
   if (!post) notFound();
 
   const { html: withIds, headings } = extractHeadings(post.content);
@@ -189,6 +190,8 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
           </div>
         </div>
       )}
+
+      <CommentSection slug={slug} initialComments={comments} />
     </main>
   );
 }

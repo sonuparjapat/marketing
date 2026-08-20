@@ -20,6 +20,8 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
       { href: '/admin/leads', label: 'Leads', permission: 'leads.read' },
       { href: '/admin/callbacks', label: 'Callbacks', permission: 'callbacks.read' },
       { href: '/admin/subscribers', label: 'Subscribers', permission: 'subscribers.read' },
+      { href: '/admin/support-tickets', label: 'Support Tickets', permission: 'support_tickets.read' },
+      { href: '/admin/customers', label: 'Customers', permission: 'customers.read' },
     ],
   },
   {
@@ -30,6 +32,7 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
       { href: '/admin/case-studies', label: 'Case Studies', permission: 'case_studies.read' },
       { href: '/admin/services', label: 'Services', permission: 'services.read' },
       { href: '/admin/testimonials', label: 'Testimonials', permission: 'testimonials.read' },
+      { href: '/admin/comments', label: 'Comments', permission: 'comments.read' },
       { href: '/admin/team', label: 'Team', permission: 'team.read' },
       { href: '/admin/faqs', label: 'FAQs', permission: 'faqs.read' },
       { href: '/admin/pages', label: 'Pages', permission: 'pages.read' },
@@ -87,6 +90,15 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     onNewCallback: (data) => {
       const cb = data as { name?: string };
       show(`New callback request from ${cb.name || 'someone'}.`);
+      setInboxBadge((n) => n + 1);
+    },
+    onNewTicket: (data) => {
+      const ticket = data as { subject?: string };
+      show(`New support ticket: ${ticket.subject || 'Untitled'}.`);
+      setInboxBadge((n) => n + 1);
+    },
+    onNewTicketMessage: () => {
+      show('A customer replied to a support ticket.');
       setInboxBadge((n) => n + 1);
     },
   });
