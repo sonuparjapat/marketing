@@ -14,6 +14,7 @@ const FALLBACK_NAV: Pick<NavLink, 'href' | 'label'>[] = [
   { href: '/work', label: 'Work' },
   { href: '/about', label: 'About' },
   { href: '/blog', label: 'Blog' },
+  { href: '/premium', label: 'Premium' },
   { href: '/contact', label: 'Contact' },
 ];
 
@@ -30,6 +31,15 @@ export function Header({
   const pathname = usePathname();
   const nav = navLinks && navLinks.length > 0 ? navLinks : FALLBACK_NAV;
   const { customer, loading, logout } = useCustomerAuth();
+
+  // A minimal global event so far-away components (e.g. the /premium pricing cards) can open the
+  // sign-in drawer without lifting its open state out of Header into a shared context — mirrors
+  // the existing cookieconsent-change window-event pattern used elsewhere in this codebase.
+  useEffect(() => {
+    const openAuth = () => setAuthOpen(true);
+    window.addEventListener('open-auth-drawer', openAuth);
+    return () => window.removeEventListener('open-auth-drawer', openAuth);
+  }, []);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);

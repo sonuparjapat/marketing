@@ -14,8 +14,16 @@ function errMessage(err: unknown, fallback: string) {
   return fallback;
 }
 
-type Tab = 'overview' | 'reviews' | 'support' | 'settings';
+type Tab = 'overview' | 'premium' | 'reviews' | 'support' | 'settings';
 type Stats = { comment_count: number; review_count: number; ticket_count: number };
+type Subscription = {
+  id: number;
+  plan_name: string;
+  started_at: string;
+  expires_at: string;
+  status: 'active' | 'cancelled' | 'refunded';
+  is_currently_active: boolean;
+};
 
 const STAT_ICONS: Record<'gold' | 'emerald' | 'coral', ReactNode> = {
   gold: (
@@ -66,6 +74,7 @@ export default function AccountPage() {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>('overview');
   const [stats, setStats] = useState<Stats | null>(null);
+  const [subscriptions, setSubscriptions] = useState<Subscription[] | null>(null);
 
   // Profile edit
   const [editingName, setEditingName] = useState(false);
@@ -89,6 +98,10 @@ export default function AccountPage() {
     customerApiClient
       .get('/auth/stats')
       .then((res) => setStats(res.data.data))
+      .catch(() => {});
+    customerApiClient
+      .get('/subscriptions/me')
+      .then((res) => setSubscriptions(res.data.data))
       .catch(() => {});
   }, [customer]);
 
@@ -228,6 +241,7 @@ export default function AccountPage() {
         <div className="mb-8 flex gap-1 overflow-x-auto rounded-full border border-line-soft p-1 text-sm">
           {([
             ['overview', 'Overview'],
+            ['premium', 'Premium'],
             ['reviews', 'Reviews'],
             ['support', 'Support'],
             ['settings', 'Settings'],
@@ -259,6 +273,51 @@ export default function AccountPage() {
                 Open support tickets
               </Link>
             </div>
+          </div>
+        )}
+
+        {tab === 'premium' && (
+          <div className="glass rounded-2xl p-8">
+            <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <h2 className="mb-1 font-serif text-xl">Your subscriptions</h2>
+                <p className="text-sm text-muted">Every plan you&apos;ve purchased, active or expired.</p>
+              </div>
+              <Link
+                href="/premium"
+                className="shrink-0 rounded-lg bg-accent px-5 py-2.5 text-sm font-bold text-bg transition-all hover:-translate-y-0.5"
+              >
+                View plans
+              </Link>
+            </div>
+            {!subscriptions?.length ? (
+              <p className="text-sm text-faint">No subscriptions yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {subscriptions.map((s) => (
+                  <div
+                    key={s.id}
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line-soft px-5 py-4"
+                  >
+                    <div>
+                      <div className="font-semibold">{s.plan_name}</div>
+                      <div className="text-xs text-faint">
+                        {new Date(s.started_at).toLocaleDateString('en-IN')} &rarr; {new Date(s.expires_at).toLocaleDateString('en-IN')}
+                      </div>
+                    </div>
+                    <span
+                      className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wide ${
+                        s.is_currently_active
+                          ? 'border border-accent/40 bg-accent/10 text-accent'
+                          : 'border border-line-soft text-faint'
+                      }`}
+                    >
+                      {s.is_currently_active ? 'Active' : s.status === 'refunded' ? 'Refunded' : 'Expired'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

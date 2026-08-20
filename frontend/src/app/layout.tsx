@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Script from 'next/script';
 import { Newsreader, Manrope } from 'next/font/google';
 import './globals.css';
 import { getPublicSettings } from '@/lib/api';
@@ -51,6 +52,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     <html lang="en">
       <body className={`${newsreader.variable} ${manrope.variable} antialiased`}>
         <style>{`:root { --bg: ${bg}; --accent: ${accent}; }`}</style>
+        <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
         <ToastProvider>
           <CustomerAuthProvider>{children}</CustomerAuthProvider>
         </ToastProvider>

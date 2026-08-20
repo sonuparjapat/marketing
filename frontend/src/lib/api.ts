@@ -118,6 +118,16 @@ export type Page = {
 };
 export type HomepageSection = { id: number; section_key: string; is_enabled: boolean; sort_order: number };
 
+export type SubscriptionPlan = {
+  id: number;
+  name: string;
+  description: string | null;
+  duration_days: number;
+  price_paise: number;
+  sort_order: number;
+  services: { id: number; key: string; label: string }[];
+};
+
 async function fetchApi<T>(path: string, revalidate = 60): Promise<T> {
   const res = await fetch(`${API_URL}/api${path}`, { next: { revalidate } });
   if (!res.ok) throw new Error(`API error ${res.status} on ${path}`);
@@ -132,6 +142,8 @@ export const getCaseStudies = (query = '') => fetchApi<CaseStudy[]>(`/case-studi
 export const getCaseStudy = (slug: string) => fetchApi<CaseStudyDetail>(`/case-studies/${slug}`).catch(() => null);
 
 export const getTestimonials = () => fetchApi<Testimonial[]>('/testimonials').catch(() => []);
+
+export const getSubscriptionPlans = () => fetchApi<SubscriptionPlan[]>('/subscription-plans').catch(() => []);
 
 export const getPosts = (query = '') =>
   fetchApi<{ items: Post[]; total: number; page: number; limit: number }>(`/posts${query}`).catch(() => ({
