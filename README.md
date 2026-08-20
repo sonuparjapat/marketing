@@ -11,6 +11,10 @@
   <img alt="Tailwind" src="https://img.shields.io/badge/Tailwind_CSS_v4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white" />
   <img alt="Expo" src="https://img.shields.io/badge/Expo_SDK_57-000020?style=flat-square&logo=expo&logoColor=white" />
   <img alt="Socket.io" src="https://img.shields.io/badge/Socket.io-realtime-010101?style=flat-square&logo=socket.io&logoColor=white" />
+  <img alt="Jest" src="https://img.shields.io/badge/Jest-backend_tests-C21325?style=flat-square&logo=jest&logoColor=white" />
+  <img alt="Vitest" src="https://img.shields.io/badge/Vitest-frontend_tests-6E9F18?style=flat-square&logo=vitest&logoColor=white" />
+  <img alt="GitHub Actions" src="https://img.shields.io/badge/CI-GitHub_Actions-2088FF?style=flat-square&logo=githubactions&logoColor=white" />
+  <img alt="Sentry" src="https://img.shields.io/badge/Sentry-error_tracking-362D59?style=flat-square&logo=sentry&logoColor=white" />
 </p>
 
 ---
@@ -41,7 +45,8 @@ Three independent apps, one shared source of truth: every table in Postgres, exp
 ### 🌐 Public site (`frontend/`, `(site)` route group)
 - Premium dark-theme homepage — hero, admin-managed **banner/carousel rotation**, client logo marquee, services grid, a "How We Work" process section, animated stats, case studies, testimonials carousel, blog preview, CTA — every section individually toggleable from the admin panel
 - Full page set: Services (listing + detail with FAQs), Work/Case Studies (listing + detail), Blog (listing with search/category filters + full article pages with TOC, syntax highlighting, reading time, share buttons), About, Contact (lead form + callback request), legal pages (Privacy/Terms/Refund — DB-backed, not hardcoded)
-- **Customer accounts** — a separate identity space from admins: register/login, a right-side auth drawer, and a real forgot-password flow (email-based reset link)
+- **Customer accounts** — a separate identity space from admins: register/login, a right-side auth drawer, a real forgot-password flow (email-based reset link), and a self-service account page (export your data as JSON, delete your account)
+- A cookie-consent banner gates Google Analytics loading until the visitor actually accepts — GA4 never fires on page load unconditionally
 - SEO: canonical URLs + Open Graph + JSON-LD (Organization, Article, BreadcrumbList, FAQPage) on every route, sitemap.xml, robots.txt
 - A visual design system — glassmorphic panels, gradient icon badges, a gold/emerald/coral accent palette — shared across every page via `globals.css` utility classes
 
@@ -64,9 +69,19 @@ Three independent apps, one shared source of truth: every table in Postgres, exp
 ### ⚙️ Backend (`backend/`)
 - Express 5 REST API, ~30 resource modules, all following the same public-router / admin-router split
 - PostgreSQL via `pg`, with `src/database/init.js` as a single idempotent migration file (`CREATE TABLE IF NOT EXISTS` + `ADD COLUMN IF NOT EXISTS`) — safe to run on every boot, currently defines 27 tables
-- JWT auth in httpOnly cookies (dual `admin`/`customer` token spaces so both sessions coexist in one browser), bcrypt password hashing, per-endpoint rate limiting, Helmet, CORS allow-list
+- JWT auth (dual `admin`/`customer` token spaces so both sessions coexist in one browser), bcrypt password hashing, per-endpoint rate limiting, Helmet, CORS allow-list
+- **Real session revocation** — a `token_version` column checked on every authenticated request means deactivating an admin or changing a password instantly invalidates every already-issued token for that account, not just at next expiry
+- **TOTP two-factor authentication** for admin accounts (any standard authenticator app — Google Authenticator, Authy, 1Password), with a QR-code setup flow and a password-gated disable
+- **Rich-text HTML sanitization** on every admin-authored field that's rendered back out via `dangerouslySetInnerHTML` (blog posts, pages, case studies) — stored-XSS protection at the write path, not just the read path
+- Upload validation beyond mimetype — file-signature (magic-byte) checking so a relabeled non-image can't slip past the extension/mimetype allowlist
 - Transactional email via SMTP/Nodemailer (lead replies, callback confirmations, newsletter welcome, password resets) — no-ops safely with a console warning if SMTP isn't configured yet
 - Image uploads to S3, with automatic local-disk fallback so the app works before AWS credentials exist
+- Optional Sentry error tracking (backend + frontend) — no-ops without a DSN, same pattern as email/S3
+
+### ✅ Testing & CI
+- Backend: Jest + Supertest — auth flows, RBAC permission logic, session revocation, and HTML sanitization are covered by real (not placeholder) tests, with the database layer mocked rather than requiring a live Postgres instance to run
+- Frontend: Vitest + React Testing Library — localStorage session helpers, the cookie-consent flow, and component-level rendering logic
+- GitHub Actions (`.github/workflows/ci.yml`) runs typecheck + lint + tests + build for all three apps on every push/PR to `main`
 
 ---
 
@@ -79,7 +94,7 @@ npm install
 cp .env.example .env   # fill in DATABASE_URL at minimum
 npm run dev             # auto-creates every table + seeds the first admin on boot
 ```
-Optional: `node src/database/seed.js` populates demo services, case studies, testimonials, and blog posts so the site isn't empty on first run.
+Optional: `node src/database/seed.js` populates demo services, case studies, testimonials, and blog posts so the site isn't empty on first run. Run `npm test` for the backend's Jest suite (no live database needed — the DB layer is mocked).
 
 ### Frontend — `http://localhost:3000`
 ```bash
@@ -87,7 +102,7 @@ cd frontend
 npm install
 npm run dev
 ```
-Reads `NEXT_PUBLIC_API_URL` from `.env.local` (defaults to the local backend). The admin panel lives at `/admin` — sign in with the `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` from the backend's `.env`.
+Reads `NEXT_PUBLIC_API_URL` from `.env.local` (defaults to the local backend). The admin panel lives at `/admin` — sign in with the `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` from the backend's `.env`. Run `npm test` for the frontend's Vitest suite.
 
 ### Mobile — Expo Go or a simulator
 ```bash
@@ -110,6 +125,9 @@ Reads `EXPO_PUBLIC_API_URL` from `.env`.
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` / `MAIL_FROM` | optional | Transactional email — everything degrades gracefully (logs a warning) without it |
 | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_REGION` / `AWS_BUCKET_NAME` | optional | S3 uploads — falls back to local disk storage without it |
 | `ADMIN_EMAIL` | optional | Where "new lead" admin-alert emails are sent |
+| `SENTRY_DSN` | optional | Backend error tracking — no-ops without it |
+
+Frontend also reads two optional Sentry variables in `.env.local`: `SENTRY_DSN` (server-side) and `NEXT_PUBLIC_SENTRY_DSN` (client-side, must use the `NEXT_PUBLIC_` prefix since it ships to the browser).
 
 ---
 

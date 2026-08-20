@@ -309,9 +309,18 @@ async function initDB() {
 
     await client.query(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS password_reset_token VARCHAR(128);`);
     await client.query(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS password_reset_expires TIMESTAMP;`);
+    // token_version powers real session revocation — bumping it instantly invalidates every
+    // already-issued JWT for that account (password change, account deletion) without needing a
+    // token blacklist/Redis; auth middleware checks it against the DB on every request.
+    await client.query(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS token_version INT DEFAULT 1;`);
 
     await client.query(`ALTER TABLE admins ALTER COLUMN role SET DEFAULT 'editor';`);
     await client.query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;`);
+    await client.query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS token_version INT DEFAULT 1;`);
+    // TOTP two-factor auth — secret is only set once the admin completes setup by verifying a
+    // code; totp_enabled gates whether login requires the second step.
+    await client.query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS totp_secret VARCHAR(64);`);
+    await client.query(`ALTER TABLE admins ADD COLUMN IF NOT EXISTS totp_enabled BOOLEAN DEFAULT FALSE;`);
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS departments (

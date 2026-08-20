@@ -86,7 +86,10 @@ const resetPassword = asyncHandler(async (req, res) => {
   if (!password || password.length < 8) return fail(res, 'Password must be at least 8 characters', 400);
 
   const hash = await bcrypt.hash(password, 12);
-  const result = await pool.query('UPDATE admins SET password_hash = $1 WHERE id = $2 RETURNING id', [hash, req.params.id]);
+  const result = await pool.query(
+    'UPDATE admins SET password_hash = $1, token_version = token_version + 1 WHERE id = $2 RETURNING id',
+    [hash, req.params.id]
+  );
   if (!result.rows[0]) return fail(res, 'Admin not found', 404);
   ok(res, { id: result.rows[0].id });
 });

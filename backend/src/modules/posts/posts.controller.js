@@ -60,7 +60,7 @@ const allowedFields = [
   'title', 'slug', 'excerpt', 'content', 'cover_image', 'cover_image_alt', 'category', 'tags',
   'author', 'author_id', 'meta_title', 'meta_description', 'is_published', 'updated_at',
 ];
-const adminCrud = buildAdminCrud('posts', { allowedFields, defaultOrder: 'created_at DESC' });
+const adminCrud = buildAdminCrud('posts', { allowedFields, defaultOrder: 'created_at DESC', htmlFields: ['content'] });
 
 // Custom admin list (rather than the generic buildAdminCrud list) — supports title search and
 // category filtering server-side, since the admin post list's search/category UI filters across

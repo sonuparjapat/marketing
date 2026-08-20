@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const pool = require('../config/db');
 const { fail } = require('../utils/response');
 
 function extractToken(req) {
@@ -8,12 +9,21 @@ function extractToken(req) {
   return null;
 }
 
-function adminAuth(req, res, next) {
+// Verifies the JWT AND checks token_version against the DB on every request. A pure JWT-verify
+// can't be revoked before it expires (up to 7 days); this closes that gap — deactivating an admin
+// or changing a password bumps token_version, which instantly invalidates every already-issued
+// token for that account, not just the one used to make the change. One extra indexed PK lookup
+// per request is the accepted cost for real revocation without standing up Redis.
+async function adminAuth(req, res, next) {
   const token = extractToken(req);
   if (!token) return fail(res, 'Authentication required', 401);
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const result = await pool.query('SELECT token_version, is_active FROM admins WHERE id = $1', [decoded.id]);
+    const admin = result.rows[0];
+    if (!admin || admin.is_active === false) return fail(res, 'Invalid or expired token', 401);
+    if ((decoded.tv || 1) !== admin.token_version) return fail(res, 'Your session has expired — please sign in again', 401);
     req.admin = decoded;
     next();
   } catch (err) {
@@ -51,13 +61,17 @@ function extractCustomerToken(req) {
   return null;
 }
 
-function customerAuth(req, res, next) {
+async function customerAuth(req, res, next) {
   const token = extractCustomerToken(req);
   if (!token) return fail(res, 'Authentication required', 401);
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     if (decoded.type !== 'customer') return fail(res, 'Invalid or expired token', 401);
+    const result = await pool.query('SELECT token_version, is_active FROM customers WHERE id = $1', [decoded.id]);
+    const customer = result.rows[0];
+    if (!customer || customer.is_active === false) return fail(res, 'Invalid or expired token', 401);
+    if ((decoded.tv || 1) !== customer.token_version) return fail(res, 'Your session has expired — please sign in again', 401);
     req.customer = decoded;
     next();
   } catch (err) {

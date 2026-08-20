@@ -6,6 +6,7 @@ export type AdminUser = {
   department_id: number | null;
   department_name?: string | null;
   permissions: string[];
+  totp_enabled?: boolean;
 };
 
 export function getAdminToken(): string | null {

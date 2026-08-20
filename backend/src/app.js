@@ -7,6 +7,7 @@ const cookieParser = require('cookie-parser');
 const morgan = require('morgan');
 
 const { notFound, errorHandler } = require('./middleware/errorHandler');
+const { Sentry, isConfigured: sentryConfigured } = require('./config/sentry');
 const { globalLimiter } = require('./middleware/rateLimiters');
 const auditLog = require('./middleware/auditLog');
 
@@ -120,6 +121,9 @@ app.use('/api/admin/departments', departments.adminRouter);
 app.use('/api/admin/permissions', permissions.adminRouter);
 
 app.use(notFound);
+// Must be registered after every route and before the app's own error handler — it forwards
+// unhandled errors to Sentry, then passes them along so errorHandler still shapes the JSON response.
+if (sentryConfigured) Sentry.setupExpressErrorHandler(app);
 app.use(errorHandler);
 
 module.exports = app;

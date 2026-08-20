@@ -34,8 +34,13 @@ export function ChangePasswordModal({ open, onClose }: { open: boolean; onClose:
     setSaving(true);
     try {
       await apiClient.patch('/admin/change-password', { currentPassword, newPassword });
-      show('Password changed.');
+      show('Password changed — please sign in again.');
       close();
+      // Changing the password invalidates every session for this account, including this one —
+      // send the admin straight to login instead of letting their next click surface a confusing 401.
+      localStorage.removeItem('admin_token');
+      localStorage.removeItem('admin_user');
+      window.location.href = '/admin/login';
     } catch (err) {
       show(errMessage(err, 'Something went wrong.'), 'error');
     } finally {

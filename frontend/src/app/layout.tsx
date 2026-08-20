@@ -1,10 +1,11 @@
 import type { Metadata } from 'next';
 import { Newsreader, Manrope } from 'next/font/google';
-import Script from 'next/script';
 import './globals.css';
 import { getPublicSettings } from '@/lib/api';
 import { ToastProvider } from '@/components/Toast';
 import { CustomerAuthProvider } from '@/context/CustomerAuthContext';
+import { GoogleAnalytics } from '@/components/GoogleAnalytics';
+import { CookieConsentBanner } from '@/components/CookieConsentBanner';
 
 const newsreader = Newsreader({
   variable: '--font-newsreader',
@@ -53,17 +54,8 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         <ToastProvider>
           <CustomerAuthProvider>{children}</CustomerAuthProvider>
         </ToastProvider>
-        {gaId && (
-          <>
-            <Script src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`} strategy="afterInteractive" />
-            <Script id="ga4-init" strategy="afterInteractive">
-              {`window.dataLayer = window.dataLayer || [];
-                function gtag(){dataLayer.push(arguments);}
-                gtag('js', new Date());
-                gtag('config', '${gaId}');`}
-            </Script>
-          </>
-        )}
+        <CookieConsentBanner />
+        {gaId && <GoogleAnalytics gaId={gaId} />}
       </body>
     </html>
   );

@@ -21,7 +21,14 @@ function profileOf(customer) {
 
 function issueSession(res, customer) {
   const token = jwt.sign(
-    { id: customer.id, email: customer.email, name: customer.name, is_premium: customer.is_premium, type: 'customer' },
+    {
+      id: customer.id,
+      email: customer.email,
+      name: customer.name,
+      is_premium: customer.is_premium,
+      type: 'customer',
+      tv: customer.token_version || 1,
+    },
     process.env.JWT_SECRET,
     { expiresIn: '30d' }
   );
@@ -120,11 +127,36 @@ const resetPassword = asyncHandler(async (req, res) => {
   if (!customer) return fail(res, 'This reset link is invalid or has expired', 400);
 
   const hash = await bcrypt.hash(password, 12);
+  // Bumping token_version signs out every device that was logged in before the reset — the
+  // whole point of a "forgot password" flow is that a previous session may not be trustworthy.
   await pool.query(
-    'UPDATE customers SET password_hash = $1, password_reset_token = NULL, password_reset_expires = NULL WHERE id = $2',
+    `UPDATE customers
+     SET password_hash = $1, password_reset_token = NULL, password_reset_expires = NULL, token_version = token_version + 1
+     WHERE id = $2`,
     [hash, customer.id]
   );
   ok(res, { message: 'Password updated — you can now sign in.' });
 });
 
-module.exports = { register, login, logout, me, forgotPassword, resetPassword };
+// Self-service data export (a plain-English "right to access" — returns everything the platform
+// holds about this customer as one JSON document, not a formatted report).
+const exportData = asyncHandler(async (req, res) => {
+  const result = await pool.query(
+    'SELECT id, name, email, is_premium, created_at FROM customers WHERE id = $1',
+    [req.customer.id]
+  );
+  const customer = result.rows[0];
+  if (!customer) return fail(res, 'Account not found', 404);
+  ok(res, { account: customer, exported_at: new Date().toISOString() });
+});
+
+// Self-service account deletion — permanent, no confirmation email step (the customer is already
+// authenticated when they call this). The row is gone, so there's nothing left to token_version-bump;
+// the next request with this token 404s the account lookup in customerAuth and is rejected there.
+const deleteAccount = asyncHandler(async (req, res) => {
+  await pool.query('DELETE FROM customers WHERE id = $1', [req.customer.id]);
+  res.clearCookie('customer_token');
+  ok(res, { deleted: true });
+});
+
+module.exports = { register, login, logout, me, forgotPassword, resetPassword, exportData, deleteAccount };

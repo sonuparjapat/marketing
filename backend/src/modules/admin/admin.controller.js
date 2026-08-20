@@ -2,6 +2,8 @@ const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const otplib = require('otplib');
+const QRCode = require('qrcode');
 const pool = require('../../config/db');
 const asyncHandler = require('../../utils/asyncHandler');
 const { ok, fail } = require('../../utils/response');
@@ -50,21 +52,13 @@ async function resolveAdminProfile(admin) {
     department_id: admin.department_id,
     department_name: departmentName,
     permissions,
+    totp_enabled: admin.totp_enabled || false,
   };
 }
 
-const login = asyncHandler(async (req, res) => {
-  const { email, password } = req.body;
-  if (!email || !password) return fail(res, 'Email and password are required', 400);
-
-  const result = await pool.query('SELECT * FROM admins WHERE email = $1', [email.trim().toLowerCase()]);
-  const admin = result.rows[0];
-  if (!admin) return fail(res, 'Invalid credentials', 401);
-  if (admin.is_active === false) return fail(res, 'This account has been deactivated', 403);
-
-  const match = await bcrypt.compare(password, admin.password_hash);
-  if (!match) return fail(res, 'Invalid credentials', 401);
-
+// Shared by both a normal password-only login and the second step of a 2FA login — issues the
+// real session (JWT + cookie + last_login) once the admin is fully verified.
+async function issueFullSession(res, admin) {
   const profile = await resolveAdminProfile(admin);
 
   const token = jwt.sign(
@@ -75,6 +69,7 @@ const login = asyncHandler(async (req, res) => {
       name: admin.name,
       department_id: admin.department_id,
       permissions: profile.permissions,
+      tv: admin.token_version || 1,
     },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
@@ -89,7 +84,99 @@ const login = asyncHandler(async (req, res) => {
     maxAge: 7 * 24 * 60 * 60 * 1000,
   });
 
-  ok(res, { token, admin: profile });
+  return { token, admin: profile };
+}
+
+const login = asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) return fail(res, 'Email and password are required', 400);
+
+  const result = await pool.query('SELECT * FROM admins WHERE email = $1', [email.trim().toLowerCase()]);
+  const admin = result.rows[0];
+  if (!admin) return fail(res, 'Invalid credentials', 401);
+  if (admin.is_active === false) return fail(res, 'This account has been deactivated', 403);
+
+  const match = await bcrypt.compare(password, admin.password_hash);
+  if (!match) return fail(res, 'Invalid credentials', 401);
+
+  // Password verified but 2FA is on — don't issue a real session yet, just a short-lived token
+  // proving the password step passed, which the second step exchanges for the real one.
+  if (admin.totp_enabled) {
+    const pendingToken = jwt.sign({ id: admin.id, type: 'admin_2fa_pending' }, process.env.JWT_SECRET, { expiresIn: '5m' });
+    return ok(res, { requires2fa: true, pendingToken });
+  }
+
+  ok(res, await issueFullSession(res, admin));
+});
+
+// Second step of a 2FA login — exchanges the 5-minute pending token + a live authenticator code
+// for the real session, identically to what a non-2FA login issues.
+const verifyLoginTwoFactor = asyncHandler(async (req, res) => {
+  const { pendingToken, code } = req.body;
+  if (!pendingToken || !code) return fail(res, 'Code is required', 400);
+
+  let decoded;
+  try {
+    decoded = jwt.verify(pendingToken, process.env.JWT_SECRET);
+  } catch {
+    return fail(res, 'That login attempt has expired — please sign in again', 401);
+  }
+  if (decoded.type !== 'admin_2fa_pending') return fail(res, 'Invalid login attempt', 401);
+
+  const result = await pool.query('SELECT * FROM admins WHERE id = $1', [decoded.id]);
+  const admin = result.rows[0];
+  if (!admin || admin.is_active === false || !admin.totp_enabled) return fail(res, 'Invalid login attempt', 401);
+
+  const valid = await otplib.verify({ secret: admin.totp_secret, token: String(code).trim() });
+  if (!valid.valid) return fail(res, 'Incorrect code', 401);
+
+  ok(res, await issueFullSession(res, admin));
+});
+
+// Step 1 of enabling 2FA — generates a new secret (stored but NOT yet active: totp_enabled stays
+// false until verifyTwoFactor confirms the admin actually scanned it and can produce live codes).
+const setupTwoFactor = asyncHandler(async (req, res) => {
+  const secret = otplib.generateSecret();
+  await pool.query('UPDATE admins SET totp_secret = $1, totp_enabled = FALSE WHERE id = $2', [secret, req.admin.id]);
+
+  const uri = otplib.generateURI({
+    issuer: process.env.APP_NAME || 'Anvil Digital Admin',
+    label: req.admin.email,
+    secret,
+  });
+  const qrCodeDataUrl = await QRCode.toDataURL(uri);
+  ok(res, { secret, qrCodeDataUrl });
+});
+
+// Step 2 — confirms the admin's authenticator app is actually producing valid codes before 2FA
+// is switched on, so a botched setup can't lock the admin out of their own account.
+const verifyTwoFactor = asyncHandler(async (req, res) => {
+  const { code } = req.body;
+  if (!code) return fail(res, 'Code is required', 400);
+
+  const result = await pool.query('SELECT totp_secret FROM admins WHERE id = $1', [req.admin.id]);
+  const secret = result.rows[0]?.totp_secret;
+  if (!secret) return fail(res, 'Start 2FA setup first', 400);
+
+  const valid = await otplib.verify({ secret, token: String(code).trim() });
+  if (!valid.valid) return fail(res, 'Incorrect code', 401);
+
+  await pool.query('UPDATE admins SET totp_enabled = TRUE WHERE id = $1', [req.admin.id]);
+  ok(res, { enabled: true });
+});
+
+// Requires the current password (not a live code — the admin may have lost their authenticator,
+// which is exactly the case this needs to cover) so a hijacked session alone can't turn 2FA off.
+const disableTwoFactor = asyncHandler(async (req, res) => {
+  const { password } = req.body;
+  if (!password) return fail(res, 'Current password is required', 400);
+
+  const result = await pool.query('SELECT password_hash FROM admins WHERE id = $1', [req.admin.id]);
+  const match = result.rows[0] && (await bcrypt.compare(password, result.rows[0].password_hash));
+  if (!match) return fail(res, 'Incorrect password', 401);
+
+  await pool.query('UPDATE admins SET totp_enabled = FALSE, totp_secret = NULL WHERE id = $1', [req.admin.id]);
+  ok(res, { enabled: false });
 });
 
 const logout = asyncHandler(async (req, res) => {
@@ -149,8 +236,23 @@ const stats = asyncHandler(async (req, res) => {
   });
 });
 
+// The client-reported mimetype (checked by multer's fileFilter) is just a request header — trivial
+// to spoof. This checks the actual file bytes (magic numbers) for the four types multer allows, so
+// a renamed/relabeled non-image (an HTML or SVG-with-script payload, say) can't slip through as
+// something safe to serve back with an image content-type.
+function hasImageSignature(buffer) {
+  if (buffer.length < 4) return false;
+  const sig = buffer.subarray(0, 4);
+  if (sig[0] === 0xff && sig[1] === 0xd8 && sig[2] === 0xff) return true; // JPEG
+  if (sig[0] === 0x89 && sig[1] === 0x50 && sig[2] === 0x4e && sig[3] === 0x47) return true; // PNG
+  if (sig[0] === 0x47 && sig[1] === 0x49 && sig[2] === 0x46) return true; // GIF
+  if (sig[0] === 0x52 && sig[1] === 0x49 && sig[2] === 0x46 && sig[3] === 0x46) return true; // RIFF (WEBP container)
+  return false;
+}
+
 const uploadImage = asyncHandler(async (req, res) => {
   if (!req.file) return fail(res, 'No file uploaded', 400);
+  if (!hasImageSignature(req.file.buffer)) return fail(res, 'That file does not look like a valid image', 400);
 
   const ext = (req.file.originalname.split('.').pop() || 'bin').toLowerCase();
   const filename = `${Date.now()}-${Math.round(Math.random() * 1e9)}.${ext}`;
@@ -198,8 +300,25 @@ const changeOwnPassword = asyncHandler(async (req, res) => {
   if (!match) return fail(res, 'Current password is incorrect', 401);
 
   const hash = await bcrypt.hash(newPassword, 12);
-  await pool.query('UPDATE admins SET password_hash = $1 WHERE id = $2', [hash, req.admin.id]);
+  // Bumping token_version signs every other active session (other tabs/devices) out immediately —
+  // including this request's own token, by design: a password change should require a fresh login,
+  // the same as changing your password on a bank site does.
+  await pool.query(
+    'UPDATE admins SET password_hash = $1, token_version = token_version + 1 WHERE id = $2',
+    [hash, req.admin.id]
+  );
   ok(res, { updated: true });
 });
 
-module.exports = { login, logout, me, stats, uploadImage, changeOwnPassword };
+module.exports = {
+  login,
+  verifyLoginTwoFactor,
+  logout,
+  me,
+  stats,
+  uploadImage,
+  changeOwnPassword,
+  setupTwoFactor,
+  verifyTwoFactor,
+  disableTwoFactor,
+};

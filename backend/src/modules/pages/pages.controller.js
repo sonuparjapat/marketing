@@ -10,7 +10,7 @@ const getPage = asyncHandler(async (req, res) => {
 });
 
 const allowedFields = ['title', 'content', 'meta_title', 'meta_description', 'updated_at'];
-const adminCrud = buildAdminCrud('pages', { allowedFields, defaultOrder: 'slug ASC' });
+const adminCrud = buildAdminCrud('pages', { allowedFields, defaultOrder: 'slug ASC', htmlFields: ['content'] });
 
 const updatePage = asyncHandler(async (req, res, next) => {
   req.body.updated_at = new Date();

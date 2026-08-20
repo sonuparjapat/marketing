@@ -8,6 +8,7 @@ import { useAdminSocket } from '@/lib/useAdminSocket';
 import { useToast } from '@/components/Toast';
 import { PageLoader } from '@/components/ui/Spinner';
 import { ChangePasswordModal } from '@/components/admin/ChangePasswordModal';
+import { TwoFactorModal } from '@/components/admin/TwoFactorModal';
 
 type NavItem = { href: string; label: string; permission?: string };
 
@@ -74,6 +75,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const { admin, loading, isSuperAdmin, hasPermission, logout } = useAdminAuth();
   const [inboxBadge, setInboxBadge] = useState(0);
   const [changingPassword, setChangingPassword] = useState(false);
+  const [managing2fa, setManaging2fa] = useState(false);
   const { show } = useToast();
 
   useAdminSocket({
@@ -154,6 +156,9 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             {admin?.department_name && <span className="text-faint"> · {admin.department_name}</span>}
           </span>
           <div className="flex items-center gap-5">
+            <button onClick={() => setManaging2fa(true)} className="text-sm text-muted hover:text-accent">
+              {admin?.totp_enabled ? '2FA on' : 'Set up 2FA'}
+            </button>
             <button onClick={() => setChangingPassword(true)} className="text-sm text-muted hover:text-accent">
               Change password
             </button>
@@ -165,6 +170,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         <main className="p-8">{children}</main>
       </div>
       <ChangePasswordModal open={changingPassword} onClose={() => setChangingPassword(false)} />
+      <TwoFactorModal open={managing2fa} onClose={() => setManaging2fa(false)} />
     </div>
   );
 }

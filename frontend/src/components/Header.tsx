@@ -77,7 +77,9 @@ export function Header({
           {!loading &&
             (customer ? (
               <div className="hidden items-center gap-3 md:flex">
-                <span className="text-sm text-muted">Hi, {customer.name.split(' ')[0]}</span>
+                <Link href="/account" className="text-sm text-muted hover:text-accent">
+                  Hi, {customer.name.split(' ')[0]}
+                </Link>
                 <button onClick={logout} className="text-sm text-muted hover:text-accent">
                   Sign out
                 </button>
@@ -142,7 +144,9 @@ export function Header({
               {!loading &&
                 (customer ? (
                   <div className="mt-4 flex items-center justify-between border-t border-line pt-4">
-                    <span className="text-sm text-muted">Signed in as {customer.name}</span>
+                    <Link href="/account" className="text-sm text-muted hover:text-accent">
+                      Signed in as {customer.name}
+                    </Link>
                     <button onClick={logout} className="text-sm text-accent">
                       Sign out
                     </button>

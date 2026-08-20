@@ -1,4 +1,5 @@
 require('dotenv').config();
+require('./config/sentry').init();
 
 const http = require('http');
 const app = require('./app');

@@ -1,11 +1,16 @@
 const pool = require('../config/db');
 const asyncHandler = require('./asyncHandler');
 const { ok, fail } = require('./response');
+const sanitizeRichHtml = require('./sanitizeHtml');
 
 /**
  * Builds standard admin CRUD handlers for a table.
  * `table` is always a hardcoded, developer-controlled string (never request input).
  * `allowedFields` whitelists which body keys may be written — column names never come from the client.
+ * `htmlFields` (optional) names which of those columns hold rich-text HTML (from the TipTap editor)
+ * that must be sanitized before it's stored — those columns get rendered back out via
+ * dangerouslySetInnerHTML on the public site, so unsanitized input is a stored-XSS path straight to
+ * every visitor's browser, not just the admin's own.
  */
 // JSONB columns need to be passed as JSON strings — pg does not auto-serialize arrays/objects.
 function serializeValue(v) {
@@ -13,7 +18,14 @@ function serializeValue(v) {
   return v;
 }
 
-function buildAdminCrud(table, { allowedFields, defaultOrder = 'id DESC' }) {
+function buildAdminCrud(table, { allowedFields, defaultOrder = 'id DESC', htmlFields = [] }) {
+  const prepareBody = (body) => {
+    for (const f of htmlFields) {
+      if (typeof body[f] === 'string') body[f] = sanitizeRichHtml(body[f]);
+    }
+    return body;
+  };
+
   return {
     list: asyncHandler(async (req, res) => {
       const page = Math.max(1, parseInt(req.query.page, 10) || 1);
@@ -38,6 +50,7 @@ function buildAdminCrud(table, { allowedFields, defaultOrder = 'id DESC' }) {
     }),
 
     create: asyncHandler(async (req, res) => {
+      prepareBody(req.body);
       const fields = allowedFields.filter((f) => req.body[f] !== undefined);
       if (!fields.length) return fail(res, 'No valid fields provided', 400);
 
@@ -53,6 +66,7 @@ function buildAdminCrud(table, { allowedFields, defaultOrder = 'id DESC' }) {
     }),
 
     update: asyncHandler(async (req, res) => {
+      prepareBody(req.body);
       const fields = allowedFields.filter((f) => req.body[f] !== undefined);
       if (!fields.length) return fail(res, 'No valid fields provided', 400);
 

@@ -47,7 +47,11 @@ const allowedFields = [
   'title', 'slug', 'client_name', 'client_industry', 'challenge', 'solution',
   'results_json', 'cover_image', 'tags', 'is_featured', 'is_published',
 ];
-const adminCrud = buildAdminCrud('case_studies', { allowedFields, defaultOrder: 'created_at DESC' });
+const adminCrud = buildAdminCrud('case_studies', {
+  allowedFields,
+  defaultOrder: 'created_at DESC',
+  htmlFields: ['challenge', 'solution'],
+});
 
 const createCaseStudy = asyncHandler(async (req, res, next) => {
   if (!req.body.slug && req.body.title) req.body.slug = slugify(req.body.title);
