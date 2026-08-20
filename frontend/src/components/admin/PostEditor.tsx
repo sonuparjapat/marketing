@@ -25,10 +25,13 @@ export type Post = {
   meta_title: string;
   meta_description: string;
   is_published: boolean;
+  is_premium: boolean;
+  required_service_id: number | null;
 };
 
 type Category = { id: number; name: string; slug: string };
 type TeamMember = { id: number; name: string; designation: string; is_active: boolean };
+type PremiumService = { id: number; label: string; is_active: boolean };
 
 const EMPTY: Omit<Post, 'id'> = {
   title: '',
@@ -44,6 +47,8 @@ const EMPTY: Omit<Post, 'id'> = {
   meta_title: '',
   meta_description: '',
   is_published: false,
+  is_premium: false,
+  required_service_id: null,
 };
 
 function slugify(text: string) {
@@ -68,10 +73,12 @@ export function PostEditor({ postId }: { postId?: number }) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [guestAuthor, setGuestAuthor] = useState(false);
+  const [services, setServices] = useState<PremiumService[]>([]);
 
   useEffect(() => {
     apiClient.get('/admin/blog-categories').then((res) => setCategories(res.data.data.items));
     apiClient.get('/admin/team', { params: { limit: 100 } }).then((res) => setTeam(res.data.data.items));
+    apiClient.get('/admin/premium-services', { params: { limit: 100 } }).then((res) => setServices(res.data.data.items));
   }, []);
 
   useEffect(() => {
@@ -102,6 +109,10 @@ export function PostEditor({ postId }: { postId?: number }) {
   const save = async (publish?: boolean) => {
     if (!post.title.trim()) {
       show('Give the post a title first.', 'error');
+      return;
+    }
+    if (post.is_premium && !post.required_service_id) {
+      show('Pick a required service for this premium post.', 'error');
       return;
     }
     setSaving(true);
@@ -299,6 +310,39 @@ export function PostEditor({ postId }: { postId?: number }) {
                 </select>
               )}
             </label>
+          </div>
+
+          <div className="border border-line bg-bg2 p-5">
+            <h3 className="mb-4 text-xs uppercase tracking-[0.2em] text-accent">Premium</h3>
+            <label className="mb-4 flex items-center justify-between">
+              <span className="text-xs uppercase tracking-wide text-muted">Premium post</span>
+              <input
+                type="checkbox"
+                checked={post.is_premium}
+                onChange={(e) => update('is_premium', e.target.checked)}
+                className="h-4 w-4 accent-accent"
+              />
+            </label>
+            {post.is_premium && (
+              <label className="block">
+                <span className="mb-2 block text-xs uppercase tracking-wide text-muted">Required service</span>
+                <select
+                  value={post.required_service_id ?? ''}
+                  onChange={(e) => update('required_service_id', e.target.value ? Number(e.target.value) : null)}
+                  className="w-full border border-line bg-bg px-3 py-2 text-sm focus:border-accent focus:outline-none"
+                >
+                  <option value="">Select a service…</option>
+                  {services.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.label}
+                    </option>
+                  ))}
+                </select>
+                <span className="mt-1.5 block text-[11px] text-faint">
+                  Only customers with an active plan that includes this service can read the full post.
+                </span>
+              </label>
+            )}
           </div>
 
           <div className="border border-line bg-bg2 p-5">

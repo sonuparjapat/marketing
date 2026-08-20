@@ -6,7 +6,8 @@ const pool = require('../../config/db');
 const asyncHandler = require('../../utils/asyncHandler');
 const { ok, fail } = require('../../utils/response');
 const { sendMail } = require('../../config/mailer');
-const { customerPasswordReset } = require('../../utils/emailTemplates');
+const { customerPasswordReset, customerVerification } = require('../../utils/emailTemplates');
+const { IS_PREMIUM_SQL } = require('../../utils/entitlements');
 
 const COOKIE_OPTS = {
   httpOnly: true,
@@ -49,15 +50,22 @@ const register = asyncHandler(async (req, res) => {
   if (password.length < 8) return fail(res, 'Password must be at least 8 characters', 400);
 
   const hash = await bcrypt.hash(password, 12);
+  const token = crypto.randomBytes(32).toString('hex');
   try {
     const result = await pool.query(
-      `INSERT INTO customers (name, email, password_hash) VALUES ($1, $2, $3)
-       RETURNING id, name, email, is_premium, created_at`,
-      [name.trim(), email.trim().toLowerCase(), hash]
+      `INSERT INTO customers (name, email, password_hash, is_verified, verification_token)
+       VALUES ($1, $2, $3, FALSE, $4)
+       RETURNING id, name, email`,
+      [name.trim(), email.trim().toLowerCase(), hash, token]
     );
     const customer = result.rows[0];
-    const token = issueSession(res, customer);
-    ok(res, { token, customer: profileOf(customer) }, 201);
+    // Registering does NOT log the customer in — only a verified account can hold a session
+    // (see login()'s block below). The frontend shows a "check your inbox" state instead.
+    const verifyUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email?token=${token}`;
+    sendMail({ to: customer.email, subject: 'Verify your email', html: customerVerification(customer.name, verifyUrl) }).catch(
+      (e) => console.error('[mailer] verification email failed:', e.message)
+    );
+    ok(res, { verificationSent: true, email: customer.email }, 201);
   } catch (err) {
     if (err.code === '23505') return fail(res, 'An account with that email already exists', 409);
     throw err;
@@ -68,10 +76,15 @@ const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return fail(res, 'Email and password are required', 400);
 
-  const result = await pool.query('SELECT * FROM customers WHERE email = $1', [email.trim().toLowerCase()]);
+  const result = await pool.query(
+    `SELECT id, name, email, password_hash, is_active, is_verified, token_version, created_at, ${IS_PREMIUM_SQL} AS is_premium
+     FROM customers WHERE email = $1`,
+    [email.trim().toLowerCase()]
+  );
   const customer = result.rows[0];
   if (!customer) return fail(res, 'Invalid credentials', 401);
   if (customer.is_active === false) return fail(res, 'This account has been deactivated', 403);
+  if (!customer.is_verified) return fail(res, 'Please verify your email before logging in', 403);
 
   const match = await bcrypt.compare(password, customer.password_hash);
   if (!match) return fail(res, 'Invalid credentials', 401);
@@ -82,6 +95,46 @@ const login = asyncHandler(async (req, res) => {
   ok(res, { token, customer: profileOf(customer) });
 });
 
+// POST /auth/verify-email { token } — no session is issued on success (matches register: the
+// customer signs in separately afterwards). No expiry on the token, mirroring ayurvedaeccom.
+const verifyEmail = asyncHandler(async (req, res) => {
+  const { token } = req.body;
+  if (!token) return fail(res, 'Verification token is required', 400);
+
+  const result = await pool.query(
+    `UPDATE customers SET is_verified = TRUE, email_verified_at = NOW(), verification_token = NULL
+     WHERE verification_token = $1 AND is_verified = FALSE
+     RETURNING id`,
+    [token]
+  );
+  if (result.rows.length === 0) return fail(res, 'This verification link is invalid or has already been used', 400);
+  ok(res, { verified: true });
+});
+
+// POST /auth/resend-verification { email } — same no-enumeration response shape as forgotPassword,
+// and a no-op (still "success") if the account is already verified so this can't be used to probe
+// verification state either.
+const resendVerification = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  if (!email || !validator.isEmail(email)) return fail(res, 'Please provide a valid email', 400);
+
+  const result = await pool.query('SELECT id, name, email, is_verified FROM customers WHERE email = $1', [
+    email.trim().toLowerCase(),
+  ]);
+  const customer = result.rows[0];
+
+  if (customer && !customer.is_verified) {
+    const token = crypto.randomBytes(32).toString('hex');
+    await pool.query('UPDATE customers SET verification_token = $1 WHERE id = $2', [token, customer.id]);
+    const verifyUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email?token=${token}`;
+    sendMail({ to: customer.email, subject: 'Verify your email', html: customerVerification(customer.name, verifyUrl) }).catch(
+      (e) => console.error('[mailer] verification email failed:', e.message)
+    );
+  }
+
+  ok(res, { message: 'If an account exists for that email and needs verification, a new link has been sent.' });
+});
+
 const logout = asyncHandler(async (req, res) => {
   res.clearCookie('customer_token');
   ok(res, { loggedOut: true });
@@ -90,7 +143,10 @@ const logout = asyncHandler(async (req, res) => {
 // Fresh DB lookup on every call, same reasoning as admin.controller.js's /me — a deactivated
 // account or an is_premium change takes effect on next app load, not just next login.
 const me = asyncHandler(async (req, res) => {
-  const result = await pool.query('SELECT * FROM customers WHERE id = $1', [req.customer.id]);
+  const result = await pool.query(
+    `SELECT id, name, email, is_active, created_at, ${IS_PREMIUM_SQL} AS is_premium FROM customers WHERE id = $1`,
+    [req.customer.id]
+  );
   const customer = result.rows[0];
   if (!customer || customer.is_active === false) return fail(res, 'This account is no longer active', 401);
   ok(res, profileOf(customer));
@@ -152,10 +208,11 @@ const updateProfile = asyncHandler(async (req, res) => {
   const { name } = req.body;
   if (!name || !name.trim()) return fail(res, 'Name cannot be empty', 400);
 
-  const result = await pool.query('UPDATE customers SET name = $1 WHERE id = $2 RETURNING *', [
-    name.trim().slice(0, 150),
-    req.customer.id,
-  ]);
+  const result = await pool.query(
+    `UPDATE customers SET name = $1 WHERE id = $2
+     RETURNING id, name, email, is_active, created_at, ${IS_PREMIUM_SQL} AS is_premium`,
+    [name.trim().slice(0, 150), req.customer.id]
+  );
   ok(res, profileOf(result.rows[0]));
 });
 
@@ -178,7 +235,7 @@ const getStats = asyncHandler(async (req, res) => {
 // holds about this customer as one JSON document, not a formatted report).
 const exportData = asyncHandler(async (req, res) => {
   const result = await pool.query(
-    'SELECT id, name, email, is_premium, created_at FROM customers WHERE id = $1',
+    `SELECT id, name, email, created_at, ${IS_PREMIUM_SQL} AS is_premium FROM customers WHERE id = $1`,
     [req.customer.id]
   );
   const customer = result.rows[0];
@@ -200,6 +257,8 @@ module.exports = {
   login,
   logout,
   me,
+  verifyEmail,
+  resendVerification,
   updateProfile,
   getStats,
   forgotPassword,

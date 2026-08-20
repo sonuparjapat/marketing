@@ -5,13 +5,14 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useCustomerAuth } from '@/context/CustomerAuthContext';
 import { EyeIcon, EyeOffIcon, MailIcon, LockIcon, UserIcon, ArrowRightIcon, ShieldCheckIcon } from '@/components/icons';
 
-type Mode = 'login' | 'register' | 'forgot' | 'sent';
+type Mode = 'login' | 'register' | 'forgot' | 'sent' | 'sent-verify';
 
 const HEADERS: Record<Mode, { title: string; subtitle: string }> = {
   login: { title: 'Welcome back', subtitle: 'Sign in to your account' },
   register: { title: 'Create an account', subtitle: 'Free — takes less than a minute' },
   forgot: { title: 'Reset your password', subtitle: "We'll email you a secure link" },
   sent: { title: 'Check your inbox', subtitle: 'A reset link is on its way' },
+  'sent-verify': { title: 'Check your inbox', subtitle: 'Verify your email to finish signing up' },
 };
 
 function Field({
@@ -45,7 +46,7 @@ function Field({
 }
 
 export function AuthDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { login, register, forgotPassword } = useCustomerAuth();
+  const { login, register, forgotPassword, resendVerification } = useCustomerAuth();
   const [mode, setMode] = useState<Mode>('login');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -53,6 +54,8 @@ export function AuthDrawer({ open, onClose }: { open: boolean; onClose: () => vo
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [needsVerification, setNeedsVerification] = useState(false);
+  const [resendState, setResendState] = useState<'idle' | 'sending' | 'sent'>('idle');
 
   const reset = () => {
     setName('');
@@ -60,6 +63,8 @@ export function AuthDrawer({ open, onClose }: { open: boolean; onClose: () => vo
     setPassword('');
     setError('');
     setShowPassword(false);
+    setNeedsVerification(false);
+    setResendState('idle');
   };
 
   const close = () => {
@@ -70,11 +75,14 @@ export function AuthDrawer({ open, onClose }: { open: boolean; onClose: () => vo
 
   const switchMode = (m: Mode) => {
     setError('');
+    setNeedsVerification(false);
+    setResendState('idle');
     setMode(m);
   };
 
   const onSubmit = async () => {
     setError('');
+    setNeedsVerification(false);
     setSubmitting(true);
     if (mode === 'forgot') {
       const result = await forgotPassword(email);
@@ -83,10 +91,24 @@ export function AuthDrawer({ open, onClose }: { open: boolean; onClose: () => vo
       else setError(result.message);
       return;
     }
-    const result = mode === 'login' ? await login(email, password) : await register(name, email, password);
+    if (mode === 'register') {
+      const result = await register(name, email, password);
+      setSubmitting(false);
+      if (result.success) setMode('sent-verify');
+      else setError(result.message);
+      return;
+    }
+    const result = await login(email, password);
     setSubmitting(false);
-    if (result.success) close();
-    else setError(result.message);
+    if (result.success) return close();
+    setError(result.message);
+    if (result.message.toLowerCase().includes('verify')) setNeedsVerification(true);
+  };
+
+  const onResend = async () => {
+    setResendState('sending');
+    await resendVerification(email);
+    setResendState('sent');
   };
 
   const header = HEADERS[mode];
@@ -162,6 +184,22 @@ export function AuthDrawer({ open, onClose }: { open: boolean; onClose: () => vo
                     Back to sign in <ArrowRightIcon size={14} />
                   </button>
                 </div>
+              ) : mode === 'sent-verify' ? (
+                <div className="py-4 text-center">
+                  <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full border border-accent/30 bg-accent/10">
+                    <MailIcon size={26} className="text-accent" />
+                  </div>
+                  <p className="mb-2 text-sm leading-relaxed text-muted">
+                    We&apos;ve sent a verification link to <span className="text-fg">{email}</span>.
+                  </p>
+                  <p className="mb-8 text-sm leading-relaxed text-muted">Verify your email, then sign in below.</p>
+                  <button
+                    onClick={() => switchMode('login')}
+                    className="inline-flex items-center gap-2 text-sm text-accent hover:opacity-80"
+                  >
+                    Back to sign in <ArrowRightIcon size={14} />
+                  </button>
+                </div>
               ) : (
                 <div className="space-y-4">
                   {mode === 'register' && (
@@ -191,7 +229,28 @@ export function AuthDrawer({ open, onClose }: { open: boolean; onClose: () => vo
                     </div>
                   )}
 
-                  {error && <p className="text-sm text-red-400">{error}</p>}
+                  {error && (
+                    <p className="text-sm text-red-400">
+                      {error}
+                      {needsVerification && (
+                        <>
+                          {' '}
+                          {resendState === 'sent' ? (
+                            <span className="text-muted">Verification email sent.</span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={onResend}
+                              disabled={resendState === 'sending'}
+                              className="text-accent underline hover:opacity-80 disabled:opacity-60"
+                            >
+                              {resendState === 'sending' ? 'Sending…' : 'Resend verification email'}
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </p>
+                  )}
 
                   <button
                     onClick={onSubmit}
@@ -224,7 +283,7 @@ export function AuthDrawer({ open, onClose }: { open: boolean; onClose: () => vo
               )}
             </div>
 
-            {mode !== 'sent' && (
+            {mode !== 'sent' && mode !== 'sent-verify' && (
               <div className="flex flex-wrap gap-2 border-t border-line-soft px-7 py-5">
                 {['Free to join', 'No spam, ever', 'Data stays private'].map((label) => (
                   <span

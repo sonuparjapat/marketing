@@ -9,6 +9,8 @@ import { ReadingProgressBar } from '@/components/ReadingProgressBar';
 import { ShareButtons } from '@/components/ShareButtons';
 import { CommentSection } from '@/components/CommentSection';
 import { PostVoteButtons } from '@/components/PostVoteButtons';
+import { PremiumContent } from '@/components/PremiumContent';
+import { LockIcon } from '@/components/icons';
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
@@ -33,9 +35,9 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
   const [post, comments] = await Promise.all([getPost(slug), getComments(slug)]);
   if (!post) notFound();
 
-  const { html: withIds, headings } = extractHeadings(post.content);
-  const html = highlightCodeBlocks(withIds);
-  const wordCount = post.content.replace(/<[^>]*>/g, ' ').trim().split(/\s+/).filter(Boolean).length;
+  const { html: withIds, headings } = post.locked ? { html: '', headings: [] } : extractHeadings(post.content || '');
+  const html = post.locked ? '' : highlightCodeBlocks(withIds);
+  const wordCount = post.locked ? 0 : (post.content || '').replace(/<[^>]*>/g, ' ').trim().split(/\s+/).filter(Boolean).length;
   const readingTime = Math.max(1, Math.round(wordCount / 200));
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
   const postUrl = `${siteUrl}/blog/${post.slug}`;
@@ -73,7 +75,14 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
           &larr; All posts
         </Link>
 
-        <span className="text-[11px] uppercase tracking-wider text-accent">{post.category}</span>
+        <div className="flex items-center gap-3">
+          <span className="text-[11px] uppercase tracking-wider text-accent">{post.category}</span>
+          {post.is_premium && (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/40 bg-accent/10 px-2.5 py-1 text-[11px] text-accent">
+              <LockIcon size={11} /> Premium
+            </span>
+          )}
+        </div>
         <h1 className="mb-5 mt-3 font-serif text-3xl font-normal leading-tight md:text-[42px]">{post.title}</h1>
 
         <div className="mb-10 flex flex-wrap items-center gap-3 text-sm text-faint">
@@ -106,45 +115,51 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
         )}
       </div>
 
-      <div className="mx-auto grid max-w-[960px] gap-10 lg:grid-cols-[720px_1fr]">
-        <div>
-          {headings.length > 1 && (
-            <details className="mb-8 rounded-xl border border-line-soft bg-bg2/40 p-4 lg:hidden">
-              <summary className="cursor-pointer text-xs uppercase tracking-[0.2em] text-accent">On this page</summary>
-              <nav className="mt-4 space-y-2.5 text-[13px]">
-                {headings.map((h) => (
-                  <a key={h.id} href={`#${h.id}`} className={`block text-muted hover:text-accent ${h.level === 3 ? 'pl-3' : ''}`}>
-                    {h.text}
-                  </a>
-                ))}
-              </nav>
-            </details>
-          )}
-          <div
-            className="prose prose-lg max-w-none [&_pre]:bg-bg2 [&_img]:border [&_img]:border-line"
-            dangerouslySetInnerHTML={{ __html: html }}
-          />
+      {post.locked ? (
+        <div className="mx-auto max-w-[720px]">
+          <PremiumContent slug={slug} excerpt={post.excerpt} serviceLabel={post.required_service_label} />
         </div>
+      ) : (
+        <div className="mx-auto grid max-w-[960px] gap-10 lg:grid-cols-[720px_1fr]">
+          <div>
+            {headings.length > 1 && (
+              <details className="mb-8 rounded-xl border border-line-soft bg-bg2/40 p-4 lg:hidden">
+                <summary className="cursor-pointer text-xs uppercase tracking-[0.2em] text-accent">On this page</summary>
+                <nav className="mt-4 space-y-2.5 text-[13px]">
+                  {headings.map((h) => (
+                    <a key={h.id} href={`#${h.id}`} className={`block text-muted hover:text-accent ${h.level === 3 ? 'pl-3' : ''}`}>
+                      {h.text}
+                    </a>
+                  ))}
+                </nav>
+              </details>
+            )}
+            <div
+              className="prose prose-lg max-w-none [&_pre]:bg-bg2 [&_img]:border [&_img]:border-line"
+              dangerouslySetInnerHTML={{ __html: html }}
+            />
+          </div>
 
-        {headings.length > 1 && (
-          <aside className="hidden lg:block">
-            <div className="sticky top-28 border-l border-line pl-6">
-              <div className="mb-4 text-xs uppercase tracking-[0.2em] text-accent">On this page</div>
-              <nav className="space-y-2.5 text-[13px]">
-                {headings.map((h) => (
-                  <a
-                    key={h.id}
-                    href={`#${h.id}`}
-                    className={`block text-muted hover:text-accent ${h.level === 3 ? 'pl-3' : ''}`}
-                  >
-                    {h.text}
-                  </a>
-                ))}
-              </nav>
-            </div>
-          </aside>
-        )}
-      </div>
+          {headings.length > 1 && (
+            <aside className="hidden lg:block">
+              <div className="sticky top-28 border-l border-line pl-6">
+                <div className="mb-4 text-xs uppercase tracking-[0.2em] text-accent">On this page</div>
+                <nav className="space-y-2.5 text-[13px]">
+                  {headings.map((h) => (
+                    <a
+                      key={h.id}
+                      href={`#${h.id}`}
+                      className={`block text-muted hover:text-accent ${h.level === 3 ? 'pl-3' : ''}`}
+                    >
+                      {h.text}
+                    </a>
+                  ))}
+                </nav>
+              </div>
+            </aside>
+          )}
+        </div>
+      )}
 
       <div className="mx-auto max-w-[720px]">
         <div className="mt-14 border-t border-line pt-8">

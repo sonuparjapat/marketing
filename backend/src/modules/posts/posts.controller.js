@@ -3,6 +3,7 @@ const asyncHandler = require('../../utils/asyncHandler');
 const { ok, fail } = require('../../utils/response');
 const slugify = require('../../utils/slugify');
 const { buildAdminCrud } = require('../../utils/crud');
+const { hasActiveService } = require('../../utils/entitlements');
 
 const listPosts = asyncHandler(async (req, res) => {
   const page = Math.max(1, parseInt(req.query.page, 10) || 1);
@@ -29,7 +30,7 @@ const listPosts = asyncHandler(async (req, res) => {
   const orderBy = req.query.sort === 'trending' ? 'views DESC, created_at DESC' : 'created_at DESC';
   const totalResult = await pool.query(`SELECT COUNT(*)::int AS count FROM posts ${where}`, params);
   const dataResult = await pool.query(
-    `SELECT id, title, slug, excerpt, cover_image, cover_image_alt, category, tags, author, views, created_at, updated_at
+    `SELECT id, title, slug, excerpt, cover_image, cover_image_alt, category, tags, author, views, is_premium, created_at, updated_at
      FROM posts ${where} ORDER BY ${orderBy} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
     [...params, limit, offset]
   );
@@ -52,13 +53,29 @@ const listTags = asyncHandler(async (req, res) => {
 const getPost = asyncHandler(async (req, res) => {
   const result = await pool.query(
     `SELECT posts.*, team.name AS author_name, team.photo AS author_photo,
-            team.designation AS author_designation, team.bio AS author_bio, team.linkedin_url AS author_linkedin_url
-     FROM posts LEFT JOIN team ON team.id = posts.author_id
+            team.designation AS author_designation, team.bio AS author_bio, team.linkedin_url AS author_linkedin_url,
+            svc.label AS required_service_label
+     FROM posts
+     LEFT JOIN team ON team.id = posts.author_id
+     LEFT JOIN premium_services svc ON svc.id = posts.required_service_id
      WHERE posts.slug = $1 AND posts.is_published = TRUE`,
     [req.params.slug]
   );
   if (!result.rows[0]) return fail(res, 'Post not found', 404);
   const post = result.rows[0];
+
+  // Premium gating: the post stays fully discoverable (title/excerpt/meta reach search engines and
+  // anonymous visitors) but `content` is withheld unless the requester has an active subscription
+  // covering the specific required service. `locked: true` lets the frontend render a paywall
+  // instead of a 403/404, which would otherwise hide the post from indexing entirely.
+  let locked = false;
+  if (post.is_premium && post.required_service_id) {
+    const entitled = req.customer ? await hasActiveService(req.customer.id, post.required_service_id) : false;
+    if (!entitled) {
+      locked = true;
+      post.content = null;
+    }
+  }
 
   const [, related, voteCounts, myVote] = await Promise.all([
     pool.query('UPDATE posts SET views = views + 1 WHERE id = $1', [post.id]),
@@ -86,7 +103,27 @@ const getPost = asyncHandler(async (req, res) => {
     like_count: voteCounts.rows[0].like_count,
     dislike_count: voteCounts.rows[0].dislike_count,
     my_vote: myVote.rows[0]?.vote_type || null,
+    locked,
   });
+});
+
+// A companion to getPost, mirroring the same "server can't see the visitor's Bearer token" reason
+// getMyPostVote exists: the blog detail page is rendered server-side, so it always sees an
+// anonymous request and gives back `locked: true` for a premium post regardless of who's actually
+// asking. This lets an entitled customer's browser re-check client-side and fetch the real content
+// once useCustomerAuth() confirms who's signed in — see PremiumContent.tsx.
+const getFullContent = asyncHandler(async (req, res) => {
+  const result = await pool.query(
+    'SELECT content, is_premium, required_service_id FROM posts WHERE slug = $1 AND is_published = TRUE',
+    [req.params.slug]
+  );
+  const post = result.rows[0];
+  if (!post) return fail(res, 'Post not found', 404);
+  if (post.is_premium && post.required_service_id) {
+    const entitled = await hasActiveService(req.customer.id, post.required_service_id);
+    if (!entitled) return fail(res, 'You do not have access to this content', 403);
+  }
+  ok(res, { content: post.content });
 });
 
 // A lightweight companion to getPost — the post detail page is fetched server-side (no access to
@@ -142,6 +179,7 @@ const voteOnPost = asyncHandler(async (req, res) => {
 const allowedFields = [
   'title', 'slug', 'excerpt', 'content', 'cover_image', 'cover_image_alt', 'category', 'tags',
   'author', 'author_id', 'meta_title', 'meta_description', 'is_published', 'updated_at',
+  'is_premium', 'required_service_id',
 ];
 const adminCrud = buildAdminCrud('posts', { allowedFields, defaultOrder: 'created_at DESC', htmlFields: ['content'] });
 
@@ -167,7 +205,7 @@ const adminListPosts = asyncHandler(async (req, res) => {
 
   const totalResult = await pool.query(`SELECT COUNT(*)::int AS count FROM posts ${where}`, params);
   const dataResult = await pool.query(
-    `SELECT id, title, slug, cover_image, category, views, is_published, updated_at
+    `SELECT id, title, slug, cover_image, category, views, is_published, is_premium, updated_at
      FROM posts ${where} ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
     [...params, limit, offset]
   );
@@ -177,11 +215,17 @@ const adminListPosts = asyncHandler(async (req, res) => {
 
 const createPost = asyncHandler(async (req, res, next) => {
   if (!req.body.slug && req.body.title) req.body.slug = slugify(req.body.title);
+  if (req.body.is_premium && !req.body.required_service_id) {
+    return fail(res, 'A premium post must specify a required service', 400);
+  }
   return adminCrud.create(req, res, next);
 });
 
 const updatePost = asyncHandler(async (req, res, next) => {
   req.body.updated_at = new Date();
+  if (req.body.is_premium && !req.body.required_service_id) {
+    return fail(res, 'A premium post must specify a required service', 400);
+  }
   return adminCrud.update(req, res, next);
 });
 
@@ -189,6 +233,7 @@ module.exports = {
   listPosts,
   listTags,
   getPost,
+  getFullContent,
   getMyPostVote,
   voteOnPost,
   adminList: adminListPosts,

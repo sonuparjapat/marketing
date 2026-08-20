@@ -32,12 +32,18 @@ export function ResourceManager<T extends Row>({
   columns,
   fields,
   emptyItem,
+  hideDelete,
 }: {
   title: string;
   apiPath: string;
   columns: ColumnConfig<T>[];
   fields: FieldConfig[];
   emptyItem: Record<string, unknown>;
+  // No DELETE route exists for this resource at all (e.g. premium_services, subscription_plans —
+  // see the plan doc: hard delete is deliberately not exposed since it would orphan subscriber/
+  // payment history). Forces the Delete button off regardless of what a department's permission
+  // grants say, so a granted-but-nonexistent `.delete` permission can never surface a dead button.
+  hideDelete?: boolean;
 }) {
   const PAGE_SIZE = 20;
   const [items, setItems] = useState<T[]>([]);
@@ -54,7 +60,7 @@ export function ResourceManager<T extends Row>({
   const resource = apiPath.replace(/^\/admin\//, '').replace(/-/g, '_');
   const canCreate = hasPermission(`${resource}.create`);
   const canEdit = hasPermission(`${resource}.update`);
-  const canDelete = hasPermission(`${resource}.delete`);
+  const canDelete = !hideDelete && hasPermission(`${resource}.delete`);
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const load = async (targetPage: number) => {

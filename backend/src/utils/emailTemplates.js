@@ -68,6 +68,21 @@ const customerPasswordReset = (name, resetUrl) =>
      <p style="font-size:13px;color:#888;">If you didn't request this, you can safely ignore this email — your password won't change.</p>`
   );
 
+const customerVerification = (name, verifyUrl) =>
+  wrapper(
+    `Verify your email, ${name}`,
+    `<p>Thanks for creating an account. Please confirm this is your email address to finish setting it up — you'll need to verify before you can sign in.</p>
+     <p style="margin:24px 0;"><a href="${verifyUrl}" style="background:#d4af6a;color:#14171f;padding:12px 22px;border-radius:4px;text-decoration:none;font-weight:bold;">Verify email</a></p>
+     <p style="font-size:13px;color:#888;">If you didn't create this account, you can safely ignore this email.</p>`
+  );
+
+const subscriptionReceipt = (name, planName, expiresAt) =>
+  wrapper(
+    `You're subscribed, ${name}!`,
+    `<p>Your payment was successful and your <strong>${planName}</strong> plan is now active.</p>
+     <p>Access runs until <strong>${new Date(expiresAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</strong>.</p>`
+  );
+
 module.exports = {
   leadAutoReply,
   leadAdminAlert,
@@ -75,6 +90,8 @@ module.exports = {
   callbackAdminAlert,
   subscriberWelcome,
   customerPasswordReset,
+  customerVerification,
+  subscriptionReceipt,
   ticketAdminAlert,
   ticketReplyNotification,
 };

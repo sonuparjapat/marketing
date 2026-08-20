@@ -6,6 +6,7 @@ const publicRouter = express.Router();
 publicRouter.get('/', ctrl.listPosts);
 publicRouter.get('/tags', ctrl.listTags); // must come before /:slug or "tags" is read as a slug
 publicRouter.get('/:slug', optionalCustomerAuth, ctrl.getPost);
+publicRouter.get('/:slug/full-content', customerAuth, ctrl.getFullContent);
 publicRouter.get('/:slug/my-vote', customerAuth, ctrl.getMyPostVote);
 publicRouter.post('/:slug/vote', customerAuth, ctrl.voteOnPost);
 

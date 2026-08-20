@@ -50,6 +50,14 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     ],
   },
   {
+    label: 'Subscriptions',
+    items: [
+      { href: '/admin/subscription-plans', label: 'Plans', permission: 'subscription_plans.read' },
+      { href: '/admin/premium-services', label: 'Premium Services', permission: 'premium_services.read' },
+      { href: '/admin/payments', label: 'Payments', permission: 'payments.read' },
+    ],
+  },
+  {
     label: 'Insights',
     items: [
       { href: '/admin/analytics', label: 'Analytics', permission: 'analytics.read' },

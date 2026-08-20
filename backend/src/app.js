@@ -42,6 +42,11 @@ const tracking = require('./modules/tracking/tracking.routes');
 const customerAuth = require('./modules/customerAuth/customerAuth.routes');
 const departments = require('./modules/departments/departments.routes');
 const permissions = require('./modules/permissions/permissions.routes');
+const premiumServices = require('./modules/premiumServices/premiumServices.routes');
+const subscriptionPlans = require('./modules/subscriptionPlans/subscriptionPlans.routes');
+const subscriptions = require('./modules/subscriptions/subscriptions.routes');
+const payments = require('./modules/payments/payments.routes');
+const razorpayWebhook = require('./modules/webhooks/razorpayWebhook');
 
 const app = express();
 
@@ -66,6 +71,9 @@ app.use(
 );
 
 app.use(cookieParser());
+// Mounted BEFORE express.json() — signature verification needs the exact raw bytes Razorpay
+// signed; once express.json() parses the body, those original bytes are gone.
+app.use('/api/webhooks/razorpay', express.raw({ type: 'application/json' }), razorpayWebhook);
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
@@ -95,6 +103,9 @@ app.use('/api/pages', pages.publicRouter);
 app.use('/api/homepage-sections', homepageSections.publicRouter);
 app.use('/api/track', tracking.publicRouter);
 app.use('/api/auth', customerAuth.publicRouter);
+app.use('/api/premium-services', premiumServices.publicRouter);
+app.use('/api/subscription-plans', subscriptionPlans.publicRouter);
+app.use('/api/subscriptions', subscriptions.router);
 
 // ── Admin API ───────────────────────────────────────────────
 app.use('/api/admin', auditLog);
@@ -127,6 +138,9 @@ app.use('/api/admin/logs', adminLogs.adminRouter);
 app.use('/api/admin/analytics', analytics.adminRouter);
 app.use('/api/admin/departments', departments.adminRouter);
 app.use('/api/admin/permissions', permissions.adminRouter);
+app.use('/api/admin/premium-services', premiumServices.adminRouter);
+app.use('/api/admin/subscription-plans', subscriptionPlans.adminRouter);
+app.use('/api/admin/payments', payments.adminRouter);
 
 app.use(notFound);
 // Must be registered after every route and before the app's own error handler — it forwards

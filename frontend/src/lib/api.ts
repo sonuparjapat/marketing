@@ -57,12 +57,13 @@ export type Post = {
   tags: string[];
   author: string;
   views: number;
+  is_premium: boolean;
   created_at: string;
   updated_at: string;
 };
 
 export type PostDetail = Post & {
-  content: string;
+  content: string | null;
   author_id: number | null;
   author_name: string | null;
   author_photo: string | null;
@@ -73,6 +74,8 @@ export type PostDetail = Post & {
   like_count: number;
   dislike_count: number;
   my_vote: 'like' | 'dislike' | null;
+  locked: boolean;
+  required_service_label: string | null;
 };
 
 export type BlogCategory = { id: number; name: string; slug: string; sort_order: number };

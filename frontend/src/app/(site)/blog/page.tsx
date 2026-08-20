@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
 import { getPosts, getBlogCategories, getTags } from '@/lib/api';
+import { LockIcon } from '@/components/icons';
 
 type BlogSearchParams = { category?: string; tag?: string; q?: string; page?: string; sort?: string };
 
@@ -179,7 +180,14 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
               )}
             </div>
             <div className="flex flex-col justify-center p-8 md:p-10">
-              <span className="text-[11px] uppercase tracking-wider text-accent">{featured.category}</span>
+              <div className="flex items-center gap-2.5">
+                <span className="text-[11px] uppercase tracking-wider text-accent">{featured.category}</span>
+                {featured.is_premium && (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-accent/40 bg-accent/10 px-2 py-0.5 text-[10px] text-accent">
+                    <LockIcon size={9} /> Premium
+                  </span>
+                )}
+              </div>
               <h2 className="mt-3 font-serif text-3xl font-normal leading-tight group-hover:text-accent md:text-[34px]">
                 {featured.title}
               </h2>
@@ -227,7 +235,14 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
                       </div>
                     )}
                   </div>
-                  <span className="text-[11px] uppercase tracking-wider text-accent">{post.category}</span>
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-[11px] uppercase tracking-wider text-accent">{post.category}</span>
+                    {post.is_premium && (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-accent/40 bg-accent/10 px-2 py-0.5 text-[10px] text-accent">
+                        <LockIcon size={9} /> Premium
+                      </span>
+                    )}
+                  </div>
                   <h2 className="mt-2.5 text-[19px] font-semibold leading-snug group-hover:text-accent">{post.title}</h2>
                   <p className="mt-2 text-sm leading-relaxed text-muted">{post.excerpt}</p>
                 </Link>

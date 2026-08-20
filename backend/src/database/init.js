@@ -313,6 +313,12 @@ async function initDB() {
     // token blacklist/Redis; auth middleware checks it against the DB on every request.
     await client.query(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS token_version INT DEFAULT 1;`);
     await client.query(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS last_login TIMESTAMP;`);
+    // is_verified defaults TRUE so every account that existed before email verification shipped
+    // stays able to log in — register() is the only insert path and explicitly passes false for
+    // new signups, so verification only applies going forward.
+    await client.query(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT TRUE;`);
+    await client.query(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS verification_token VARCHAR(128);`);
+    await client.query(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMP;`);
 
     // Customer-submitted reviews reuse the testimonials table rather than a parallel one —
     // customer_id NULL means admin-authored (auto-approved, unchanged prior behavior); a customer
@@ -468,8 +474,109 @@ async function initDB() {
     await client.query(`ALTER TABLE posts ADD COLUMN IF NOT EXISTS author_id INT REFERENCES team(id) ON DELETE SET NULL;`);
     await client.query(`ALTER TABLE posts ADD COLUMN IF NOT EXISTS cover_image_alt VARCHAR(300);`);
 
+    // --- Premium subscriptions (Razorpay) -----------------------------------------------------
+    // premium_services is the admin-managed catalog of gate-able features/content (e.g. a service
+    // key a blog post can require). subscription_plans are the purchasable "cards" (1-month/3-month/
+    // 1-year style); plan_services is which services each plan bundles. Both catalogs are soft-delete
+    // only (is_active) — see the plan doc: a hard DELETE would either cascade away subscriber history
+    // or be blocked by the FKs from customer_subscriptions/posts, so deactivation is the only path
+    // exposed in the admin UI.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS premium_services (
+        id            SERIAL PRIMARY KEY,
+        key           VARCHAR(80) UNIQUE NOT NULL,
+        label         VARCHAR(150) NOT NULL,
+        description   TEXT,
+        is_active     BOOLEAN DEFAULT TRUE,
+        created_at    TIMESTAMP DEFAULT NOW()
+      );
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS subscription_plans (
+        id              SERIAL PRIMARY KEY,
+        name            VARCHAR(150) NOT NULL,
+        description     TEXT,
+        duration_days   INT NOT NULL,
+        price_paise     INT NOT NULL,
+        is_active       BOOLEAN DEFAULT TRUE,
+        sort_order      INT DEFAULT 0,
+        created_at      TIMESTAMP DEFAULT NOW()
+      );
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS plan_services (
+        id            SERIAL PRIMARY KEY,
+        plan_id       INT NOT NULL REFERENCES subscription_plans(id) ON DELETE CASCADE,
+        service_id    INT NOT NULL REFERENCES premium_services(id),
+        UNIQUE (plan_id, service_id)
+      );
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_plan_services_plan ON plan_services(plan_id);`);
+
+    // status only ever records an explicit terminal state (cancelled/refunded) written by an
+    // admin action — whether a subscription currently grants access is always DERIVED at query
+    // time (status = 'active' AND expires_at > NOW()), never eagerly flipped by a cron. Buying
+    // again before expiry is allowed and simply adds another row; entitlement is the union of
+    // every currently-unexpired row for that customer, so an early renewal never loses access.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS customer_subscriptions (
+        id            SERIAL PRIMARY KEY,
+        customer_id   INT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+        plan_id       INT NOT NULL REFERENCES subscription_plans(id),
+        started_at    TIMESTAMP NOT NULL DEFAULT NOW(),
+        expires_at    TIMESTAMP NOT NULL,
+        status        VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'cancelled', 'refunded')),
+        payment_id    INT,
+        created_at    TIMESTAMP DEFAULT NOW()
+      );
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_customer_subs_customer ON customer_subscriptions(customer_id, status, expires_at);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_customer_subs_plan ON customer_subscriptions(plan_id, status, expires_at);`);
+
+    // One payments row per checkout attempt (status starts 'created', becomes 'paid'/'failed').
+    // razorpay_order_id is unique — a customer retrying a failed checkout for the same plan starts
+    // a fresh row/fresh Razorpay order rather than reusing one, so there's never ambiguity about
+    // which attempt a given payment_id belongs to.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS payments (
+        id                    SERIAL PRIMARY KEY,
+        customer_id           INT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+        plan_id               INT NOT NULL REFERENCES subscription_plans(id),
+        razorpay_order_id     VARCHAR(100) UNIQUE NOT NULL,
+        razorpay_payment_id   VARCHAR(100),
+        razorpay_signature    TEXT,
+        amount_paise          INT NOT NULL,
+        status                VARCHAR(20) NOT NULL DEFAULT 'created' CHECK (status IN ('created', 'paid', 'failed', 'refunded')),
+        created_at            TIMESTAMP DEFAULT NOW()
+      );
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_payments_customer ON payments(customer_id, created_at DESC);`);
+
+    // Full admin-visible audit trail of every payment-related event (order created, verified,
+    // webhook received, refunded) — separate from `payments` (current state) so the history is
+    // append-only and never overwritten.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS payment_logs (
+        id                    SERIAL PRIMARY KEY,
+        event_type            VARCHAR(40) NOT NULL,
+        razorpay_order_id     VARCHAR(100),
+        razorpay_payment_id   VARCHAR(100),
+        customer_id           INT REFERENCES customers(id) ON DELETE SET NULL,
+        metadata              JSONB DEFAULT '{}',
+        created_at            TIMESTAMP DEFAULT NOW()
+      );
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_payment_logs_order ON payment_logs(razorpay_order_id);`);
+
+    // Premium blog gating — a post can require one specific service; posts.controller.js withholds
+    // `content` (but not title/excerpt) from anyone lacking an active subscription that includes it.
+    await client.query(`ALTER TABLE posts ADD COLUMN IF NOT EXISTS is_premium BOOLEAN DEFAULT FALSE;`);
+    await client.query(`ALTER TABLE posts ADD COLUMN IF NOT EXISTS required_service_id INT REFERENCES premium_services(id) ON DELETE SET NULL;`);
+
     await client.query('COMMIT');
-    console.log('Database schema is up to date (24 tables verified/created).');
+    console.log('Database schema is up to date.');
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;
@@ -515,6 +622,9 @@ const PERMISSION_MODULES = [
   { key: 'client_logos', label: 'Client Logos', group: 'Homepage' },
   { key: 'homepage_sections', label: 'Homepage Sections', group: 'Homepage' },
   { key: 'banners', label: 'Banners', group: 'Homepage' },
+  { key: 'premium_services', label: 'Premium Services', group: 'Subscriptions' },
+  { key: 'subscription_plans', label: 'Subscription Plans', group: 'Subscriptions' },
+  { key: 'payments', label: 'Payments', group: 'Subscriptions' },
   { key: 'media', label: 'Media Library', group: 'System' },
   { key: 'settings', label: 'Settings', group: 'System' },
   { key: 'analytics', label: 'Analytics', group: 'Insights' },

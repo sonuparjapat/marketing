@@ -21,6 +21,8 @@ type CustomerAuthValue = {
   forgotPassword: (email: string) => Promise<AuthResult>;
   resetPassword: (token: string, password: string) => Promise<AuthResult>;
   updateProfile: (name: string) => Promise<AuthResult>;
+  verifyEmail: (token: string) => Promise<AuthResult>;
+  resendVerification: (email: string) => Promise<AuthResult>;
 };
 
 const CustomerAuthContext = createContext<CustomerAuthValue | null>(null);
@@ -70,12 +72,29 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Registering does NOT log the customer in — the account needs email verification first
+  // (see login()'s 403 gate on the backend). No session is set here.
   const register = useCallback(async (name: string, email: string, password: string): Promise<AuthResult> => {
     try {
-      const res = await customerApiClient.post('/auth/register', { name, email, password });
-      const { token, customer: user } = res.data.data;
-      setCustomerSession(token, user);
-      setCustomer(user);
+      await customerApiClient.post('/auth/register', { name, email, password });
+      return { success: true };
+    } catch (err) {
+      return { success: false, message: errMessage(err, 'Something went wrong.') };
+    }
+  }, []);
+
+  const verifyEmail = useCallback(async (token: string): Promise<AuthResult> => {
+    try {
+      await customerApiClient.post('/auth/verify-email', { token });
+      return { success: true };
+    } catch (err) {
+      return { success: false, message: errMessage(err, 'This verification link is invalid or has expired.') };
+    }
+  }, []);
+
+  const resendVerification = useCallback(async (email: string): Promise<AuthResult> => {
+    try {
+      await customerApiClient.post('/auth/resend-verification', { email });
       return { success: true };
     } catch (err) {
       return { success: false, message: errMessage(err, 'Something went wrong.') };
@@ -122,8 +141,19 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ customer, loading, login, register, logout, forgotPassword, resetPassword, updateProfile }),
-    [customer, loading, login, register, logout, forgotPassword, resetPassword, updateProfile]
+    () => ({
+      customer,
+      loading,
+      login,
+      register,
+      logout,
+      forgotPassword,
+      resetPassword,
+      updateProfile,
+      verifyEmail,
+      resendVerification,
+    }),
+    [customer, loading, login, register, logout, forgotPassword, resetPassword, updateProfile, verifyEmail, resendVerification]
   );
 
   return <CustomerAuthContext.Provider value={value}>{children}</CustomerAuthContext.Provider>;
