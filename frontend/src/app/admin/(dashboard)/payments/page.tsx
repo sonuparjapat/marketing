@@ -61,7 +61,6 @@ export default function AdminPaymentsPage() {
 
   useEffect(() => {
     load(page);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));

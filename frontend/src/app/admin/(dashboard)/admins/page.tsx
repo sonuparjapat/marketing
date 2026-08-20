@@ -304,7 +304,7 @@ export default function AdminAdminsPage() {
               />
               <span>
                 <span className="block text-sm">Active</span>
-                <span className="mt-0.5 block text-[11px] text-faint">Off blocks them from logging in immediately — you can't deactivate your own account here.</span>
+                <span className="mt-0.5 block text-[11px] text-faint">Off blocks them from logging in immediately — you can&apos;t deactivate your own account here.</span>
               </span>
             </label>
           )}

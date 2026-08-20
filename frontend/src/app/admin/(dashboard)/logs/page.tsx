@@ -31,7 +31,7 @@ export default function AdminLogsPage() {
       <p className="mb-8 text-sm leading-relaxed text-muted">
         <strong className="text-fg">What this does:</strong> an automatic, unfakeable audit trail — every create/update/
         delete made anywhere in this admin panel is logged here the instant it happens, with who did it and when.
-        Nothing here is editable; it's a record, not a tool.
+        Nothing here is editable; it&apos;s a record, not a tool.
         <br />
         <span className="text-faint">
           Example: a homepage stat looks wrong and nobody remembers changing it. Search this log by module

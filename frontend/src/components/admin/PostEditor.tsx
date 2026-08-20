@@ -206,7 +206,7 @@ export function PostEditor({ postId }: { postId?: number }) {
             rows={2}
             className="mb-2 w-full resize-none border-0 bg-transparent text-[15px] italic text-muted placeholder:text-faint focus:outline-none"
           />
-          <p className="mb-6 text-[11px] text-faint">Shown on the /blog listing card and used as the fallback search-result description — also what a premium post's paywall shows non-subscribers.</p>
+          <p className="mb-6 text-[11px] text-faint">Shown on the /blog listing card and used as the fallback search-result description — also what a premium post&apos;s paywall shows non-subscribers.</p>
           <p className="mb-2 text-[11px] uppercase tracking-wide text-faint">Content — the full article body readers see on the post page.</p>
           <RichTextEditor value={post.content} onChange={(html) => update('content', html)} />
         </div>
