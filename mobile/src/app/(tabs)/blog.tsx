@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Text, FlatList, StyleSheet, Pressable, ActivityIndicator, RefreshControl, View, ScrollView } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme, spacing, type ThemeColors } from '../../context/theme';
 import { getPosts, getBlogCategories } from '../../api/services';
 
@@ -47,7 +48,15 @@ export default function BlogScreen() {
       }
       renderItem={({ item }) => (
         <Pressable style={styles.card} onPress={() => router.push(`/post/${item.slug}`)}>
-          <Text style={styles.category}>{item.category}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Text style={styles.category}>{item.category}</Text>
+            {item.is_premium && (
+              <View style={styles.premiumBadge}>
+                <Ionicons name="lock-closed" size={8} color={colors.accent} />
+                <Text style={styles.premiumBadgeText}>Premium</Text>
+              </View>
+            )}
+          </View>
           <Text style={styles.cardTitle}>{item.title}</Text>
           <Text style={styles.cardBody} numberOfLines={2}>{item.excerpt}</Text>
         </Pressable>
@@ -76,6 +85,18 @@ const createStyles = (colors: ThemeColors) =>
     chipTextActive: { color: colors.bg },
     card: { backgroundColor: colors.bg2, borderWidth: 1, borderColor: colors.lineSoft, borderRadius: 16, padding: 18, marginBottom: 12 },
     category: { color: colors.accent, fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 8, textTransform: 'uppercase' },
+    premiumBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 3,
+      borderWidth: 1,
+      borderColor: colors.accentDim,
+      borderRadius: 999,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      marginBottom: 8,
+    },
+    premiumBadgeText: { color: colors.accent, fontSize: 9, fontWeight: '700' },
     cardTitle: { color: colors.fg, fontSize: 16, fontWeight: '600', marginBottom: 6 },
     cardBody: { color: colors.muted, fontSize: 13.5, lineHeight: 19 },
     empty: { color: colors.faint, fontSize: 13, fontStyle: 'italic' },

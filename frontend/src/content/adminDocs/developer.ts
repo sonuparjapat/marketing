@@ -33,7 +33,7 @@ export const DEVELOPER_HTML = `<h2>Architecture overview</h2>
                             envelope), asyncHandler.js, slugify.js, notifyAdmins.js
 </code></pre>
 
-<h2>Database schema (24 tables)</h2>
+<h2>Database schema</h2>
 <p>All defined in <code>backend/src/database/init.js</code>, which is the single source of truth for schema — read that file directly for exact column types before making assumptions.</p>
 <ul>
 <li><strong>admins</strong> — id, name, email, password_hash, role (super_admin/editor), department_id (FK → departments, NULL for super_admin), is_active, last_login</li>
@@ -43,7 +43,7 @@ export const DEVELOPER_HTML = `<h2>Architecture overview</h2>
 <li><strong>leads</strong> — contact form submissions with a status pipeline (new → contacted → qualified → proposal → won/lost)</li>
 <li><strong>callbacks</strong> — callback requests, status pending/called</li>
 <li><strong>subscribers</strong> — newsletter signups</li>
-<li><strong>posts</strong> — blog posts: title, slug, excerpt, content (HTML), cover_image, cover_image_alt, category (free text, sourced from the blog_categories list in the editor), tags (JSONB), author (display name, kept in sync from the selected team member), author_id (FK → team, nullable — null means a guest author, whose name lives only in the <code>author</code> text field), meta_title/description, is_published, views</li>
+<li><strong>posts</strong> — blog posts: title, slug, excerpt, content (HTML), cover_image, cover_image_alt, category (free text, sourced from the blog_categories list in the editor), tags (JSONB), author (display name, kept in sync from the selected team member), author_id (FK → team, nullable — null means a guest author, whose name lives only in the <code>author</code> text field), meta_title/description, is_published, views, is_premium, required_service_id (FK → premium_services, nullable — see "Premium subscriptions" below)</li>
 <li><strong>blog_categories</strong> — id, name, slug, sort_order — a managed list that feeds the category dropdown in the post editor and the filter chips on the public blog page; <code>posts.category</code> stores the plain name text, not a foreign key, so renaming a category here does not retroactively rename it on existing posts</li>
 <li><strong>case_studies</strong> — title, slug, client_name/industry, challenge, solution, results_json (JSONB array of {metric, value, label}), cover_image, tags, is_featured, is_published</li>
 <li><strong>services</strong> — title, slug, descriptions, icon (fixed enum matched against <code>frontend/src/components/icons.tsx</code>'s SERVICE_ICONS map), features_json, is_active, sort_order</li>
@@ -59,7 +59,13 @@ export const DEVELOPER_HTML = `<h2>Architecture overview</h2>
 <li><strong>push_tokens</strong> — admin_id, Expo push token, platform</li>
 <li><strong>admin_logs</strong> — automatic audit trail (see Audit logging below)</li>
 <li><strong>page_views</strong> — lightweight traffic tracking (path, referrer, created_at)</li>
-<li><strong>customers</strong> — public-site accounts, entirely separate from <code>admins</code>: name, email, password_hash, is_premium (placeholder, unused so far), is_active</li>
+<li><strong>customers</strong> — public-site accounts, entirely separate from <code>admins</code>: name, email, password_hash, is_active, is_verified (default TRUE — see the email verification note below), verification_token, email_verified_at. <code>is_premium</code> is no longer a stored column read from this table directly — every query that returns a customer profile computes it live via a subquery against <code>customer_subscriptions</code> (see <code>backend/src/utils/entitlements.js</code>'s <code>IS_PREMIUM_SQL</code>) instead of trusting a flag nothing ever set</li>
+<li><strong>premium_services</strong> — id, key (unique, stable identifier), label, description, is_active — the admin-managed catalog of gate-able features; a blog post can require one via <code>posts.required_service_id</code>, and a plan bundles one or more via <code>plan_services</code>. No hard delete route exists — see "Premium subscriptions" below</li>
+<li><strong>subscription_plans</strong> — id, name, description, duration_days, price_paise, is_active, sort_order — the purchasable "cards" (e.g. 1-month/3-month/1-year). No hard delete route either</li>
+<li><strong>plan_services</strong> — join table: plan_id + service_id, UNIQUE(plan_id, service_id)</li>
+<li><strong>customer_subscriptions</strong> — id, customer_id, plan_id, started_at, expires_at, status (active/cancelled/refunded), payment_id — whether a row currently grants access is always derived at query time (<code>status = 'active' AND expires_at > NOW()</code>), never eagerly flipped by a cron</li>
+<li><strong>payments</strong> — one row per Razorpay checkout attempt: razorpay_order_id (unique), razorpay_payment_id, razorpay_signature, amount_paise, status (created/paid/failed/refunded)</li>
+<li><strong>payment_logs</strong> — append-only audit trail of every payment event (order_created, payment_verified, webhook_payment_captured, signature_mismatch, admin_refund, …), independent of <code>payments</code>' current-state row</li>
 </ul>
 <p>Note: the admin User Manual / Testing Guide / Developer Docs pages are <em>not</em> a database table — see "Admin documentation pages" below.</p>
 
@@ -92,12 +98,27 @@ GET    /nav-links                  Returns {header: [...], footer: [...]}
 GET    /homepage-stats, /why-us, /client-logos
 GET    /homepage-sections
 GET    /settings/public
+GET    /premium-services           Active service catalog (id, key, label, description)
+GET    /subscription-plans         Active plans with their bundled services, for the /premium pricing page
 </code></pre>
-<h3>Customer auth (JWT required for /auth/me only)</h3>
-<pre><code>POST   /auth/register              { name, email, password } → { token, customer }
-POST   /auth/login                 { email, password } → { token, customer }
+<h3>Customer auth (JWT required except register/login/verify/resend)</h3>
+<pre><code>POST   /auth/register              { name, email, password } → { verificationSent: true } — does NOT log in
+POST   /auth/verify-email          { token } → { verified: true } — no session issued
+POST   /auth/resend-verification   { email } — same no-enumeration response shape as forgot-password
+POST   /auth/login                 { email, password } → { token, customer } — 403s with "please verify" if !is_verified
 POST   /auth/logout                Clears the customer_token cookie
 GET    /auth/me                    Fresh DB lookup, same reasoning as /admin/me
+</code></pre>
+<h3>Subscriptions (customer JWT required)</h3>
+<pre><code>POST   /subscriptions/checkout      { plan_id } → { order_id, amount, currency, key_id, plan_name } (Razorpay order)
+POST   /subscriptions/verify        { razorpay_order_id, razorpay_payment_id, razorpay_signature } → grants access
+GET    /subscriptions/me            The customer's own subscription history + a live is_currently_active flag
+POST   /api/webhooks/razorpay       Mounted with express.raw() BEFORE the global express.json() parser
+                     (signature verification needs the exact raw bytes Razorpay signed) — the one route
+                     in app.js that isn't behind the JSON body parser. Separate secret
+                     (RAZORPAY_WEBHOOK_SECRET) from the checkout HMAC (RAZORPAY_KEY_SECRET). Fallback
+                     confirmation path for payment.captured — see "Premium subscriptions" below for the
+                     full race-condition story.
 </code></pre>
 <h3>Admin (JWT required)</h3>
 <pre><code>POST   /admin/login, /admin/logout, GET /admin/me
@@ -106,6 +127,14 @@ POST   /admin/upload                Multipart image upload → {url, media}
 GET/POST/PUT/DELETE  /admin/&lt;resource&gt;   for: leads, callbacks, subscribers, posts,
                      blog-categories, case-studies, services, testimonials, team, faqs, pages,
                      nav-links, homepage-stats, why-us, client-logos, media
+GET/POST/PUT  /admin/premium-services   No DELETE route — deactivate via is_active instead (see below)
+GET/POST/PUT  /admin/subscription-plans No DELETE route either; PUT rejects a service_ids change while
+                     the plan has active subscribers (400 with the subscriber count in the message)
+POST   /admin/subscription-plans/:id/duplicate   Copies name/description/duration/price/services into
+                     a brand-new (inactive) plan — the sanctioned way to evolve a locked plan's offering
+GET    /admin/payments                  Every payment attempt, paginated, joined to customer + plan
+GET    /admin/payments/:id/logs         payment_logs rows for one payment's razorpay_order_id
+POST   /admin/payments/:id/refund       Razorpay refund + flips the linked subscription to 'refunded'
 PATCH  /admin/homepage-sections/:id     Toggle is_enabled only
 GET/PUT  /admin/settings
 GET/POST/PATCH  /admin/admins           Super Admin only (requireSuperAdmin)
@@ -141,6 +170,19 @@ POST/DELETE  /admin/push-tokens
 <h2>The generic admin CRUD factory</h2>
 <p><code>backend/src/utils/crud.js</code> exports <code>buildAdminCrud(table, {allowedFields, defaultOrder})</code>, which returns list/getOne/create/update/remove handlers with pagination, a whitelisted-fields insert/update, and automatic JSON serialization for JSONB columns. Most simple resources (testimonials, team, nav-links, etc.) just wire this factory directly into their routes file. Resources needing custom logic (posts' slug auto-generation, leads' status pipeline, case studies' related-lookups) wrap the factory's methods with their own controller functions.</p>
 <p><strong>To add a new admin-managed resource</strong>: add a table in <code>init.js</code>, create a <code>modules/&lt;name&gt;/</code> folder with a controller (usually just <code>buildAdminCrud(...)</code> plus a public list function) and a routes file, mount both in <code>app.js</code>, then add a matching frontend page using <code>&lt;ResourceManager&gt;</code> (<code>frontend/src/components/admin/ResourceManager.tsx</code>) — it handles the table, create/edit modal, and delete confirmation generically from a <code>fields</code> config array. Add an entry to <code>AdminShell.tsx</code>'s <code>NAV_GROUPS</code> so it's reachable.</p>
+
+<h2>Premium subscriptions (Razorpay)</h2>
+<p>Modeled directly on the reference project <code>ayurvedaeccom</code>'s real Razorpay integration (order-create → Checkout.js/native → verify, HMAC signature check, a separate webhook secret) — but the plan/subscription/entitlement layer itself is net-new, since ayurvedaeccom's own "subscriptions" are unrelated product-redelivery schedules with no payment or time-based-access concept.</p>
+<ul>
+<li><strong>One-time purchase per period, not auto-recurring</strong> — a plan is bought outright for its <code>duration_days</code>, not billed on a recurring mandate. Buying again before expiry simply adds another <code>customer_subscriptions</code> row; a customer's entitlement is the union of every currently-unexpired row they hold, so an early renewal never has a gap.</li>
+<li><strong>Race-condition safety</strong>: both the client-side <code>POST /subscriptions/verify</code> and the <code>POST /api/webhooks/razorpay</code> handler call the same <code>grantSubscription()</code> (<code>backend/src/modules/subscriptions/subscriptions.service.js</code>), and both take a <code>SELECT ... FOR UPDATE</code> lock on the <code>payments</code> row and re-check <code>status !== 'paid'</code> inside the same transaction before granting — whichever of the two arrives first wins, the second is always a safe no-op. This is exactly the pattern that makes the webhook a true fallback (if the browser tab closes before <code>/verify</code> completes) rather than a source of duplicate subscriptions.</li>
+<li><strong>The service-lock business rule</strong> (<code>subscriptionPlans.controller.js</code>'s <code>updatePlan</code>): a plan's <code>service_ids</code> can only change while its live active-subscriber count (<code>customer_subscriptions</code> with <code>status='active' AND expires_at > NOW()</code>) is zero — enforced server-side on every PUT, not just hidden in the UI. This is the actual mechanism behind "can't add a new service to an existing plan" and "can't remove a service someone already paid for." <code>POST /admin/subscription-plans/:id/duplicate</code> is the sanctioned way around a locked plan — copy it, edit the copy freely (it starts with zero subscribers and <code>is_active = false</code>), then publish the copy instead of touching the original.</li>
+<li><strong>Premium blog gating</strong> (<code>posts.controller.js</code>'s <code>getPost</code>): a post with <code>is_premium = true</code> stays fully discoverable — title/excerpt/meta reach search engines and anonymous visitors — but <code>content</code> is withheld (<code>locked: true</code>) unless the requester has an active subscription covering <code>required_service_id</code>. Because the blog detail page is server-rendered and can never see the visitor's Bearer token (it lives in browser localStorage, not a cookie the server receives — same reasoning documented for comments/votes elsewhere in this doc), an entitled customer's browser re-checks client-side against <code>GET /posts/:slug/full-content</code> once mounted and swaps the real content in — see <code>frontend/src/components/PremiumContent.tsx</code> and its mobile equivalent in <code>mobile/src/app/post/[slug].tsx</code>'s <code>PremiumGate</code>.</li>
+<li><strong><code>customers.is_premium</code> is computed, not stored</strong> — every query returning a customer profile (<code>customerAuth.controller.js</code>'s <code>profileOf</code> callers, the admin customers list) uses <code>backend/src/utils/entitlements.js</code>'s <code>IS_PREMIUM_SQL</code>, a correlated <code>EXISTS</code> subquery against <code>customer_subscriptions</code>, instead of trusting a column nothing writes to.</li>
+<li><strong>Email verification gates login</strong>, matching ayurvedaeccom's pattern exactly: a plaintext <code>crypto.randomBytes(32)</code> token with no expiry, <code>customers.is_verified</code> checked in <code>login()</code> right after the <code>is_active</code> check (403 before the password compare), a non-enumerating <code>POST /auth/resend-verification</code>. <code>is_verified</code> defaults <code>TRUE</code> at the column level specifically so the migration doesn't retroactively lock out every account that registered before this feature existed — only <code>register()</code>'s insert explicitly passes <code>false</code>.</li>
+<li><strong>Payments are defensively optional</strong>, same philosophy as <code>mailer.js</code>/<code>aws.js</code>: <code>backend/src/config/razorpay.js</code> no-ops with a console warning if <code>RAZORPAY_KEY_ID</code>/<code>RAZORPAY_KEY_SECRET</code> aren't set, so the app boots and every other feature works without them. <code>RAZORPAY_WEBHOOK_SECRET</code> is a separate env var from the checkout secret — Razorpay signs webhook deliveries independently of any single checkout.</li>
+<li><strong>Mobile checkout is native</strong> (<code>react-native-razorpay</code>, not a WebView) — this is a real, permanent workflow change: it's a native module, so Expo Go can no longer run the app; testing requires an EAS custom development-client build (<code>eas build --profile development</code>, per the <code>development</code> profile in the new <code>mobile/eas.json</code>). <code>expo-dev-client</code> is installed and <code>app.json</code>'s plugin list includes it, but there is no linked EAS project yet — the project owner needs to run <code>eas login</code> then <code>eas init</code> (or <code>eas build:configure</code>) once to generate a real <code>extra.eas.projectId</code>; nothing here fabricates one.</li>
+</ul>
 
 <h2>The blog editor's architecture</h2>
 <p>Not built on ResourceManager — it's a dedicated full-page editor (<code>frontend/src/components/admin/PostEditor.tsx</code>) shared between <code>/admin/posts/new</code> and <code>/admin/posts/[id]/edit</code>. The rich text editor itself (<code>RichTextEditor.tsx</code>) is TipTap v3 with StarterKit, Underline, Highlight, CodeBlockLowlight, Placeholder, CharacterCount, TextStyle+Color (text color), TextAlign, TableKit (from <code>@tiptap/extension-table</code> — bundles Table/TableRow/TableHeader/TableCell), and Youtube extensions, plus a floating <code>BubbleMenu</code> (imported from <code>@tiptap/react/menus</code>, not the main package export). Table editing needs the <code>.prose-editor td/th</code>, <code>.selectedCell</code>, and <code>.column-resize-handle</code> rules in <code>globals.css</code> for cell-selection and column-resize visuals — TipTap's table extension ships no CSS of its own.</p>
@@ -192,7 +234,7 @@ POST/DELETE  /admin/push-tokens
 <h2>Known backlog (audited, not yet fixed)</h2>
 <p>Found during the cross-app audit above but not yet actioned — real gaps, just not done:</p>
 <ul>
-<li>Mobile push notifications are non-functional outside Expo Go — <code>getExpoPushTokenAsync()</code> needs an EAS <code>projectId</code> that isn't configured anywhere (no <code>eas.json</code>, no <code>extra.eas.projectId</code> in <code>app.json</code>) — needs the project owner's EAS account/project info to fix</li>
+<li>Mobile push notifications are non-functional outside Expo Go — <code>getExpoPushTokenAsync()</code> needs an EAS <code>projectId</code>. <code>mobile/eas.json</code> now exists (added for the native Razorpay checkout's dev-client build), but no EAS project has actually been linked (no <code>extra.eas.projectId</code> in <code>app.json</code>) — needs the project owner to run <code>eas login</code> + <code>eas init</code> once</li>
 </ul>
 
 <h2>Explicitly out of scope (don't be surprised these don't exist)</h2>

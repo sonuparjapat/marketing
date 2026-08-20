@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
 import { ThemeProvider, useTheme } from '../context/theme';
+import { CustomerAuthProvider } from '../context/CustomerAuthContext';
 
 const queryClient = new QueryClient();
 
@@ -32,8 +33,10 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <ThemeProvider>
         <QueryClientProvider client={queryClient}>
-          <StatusBar style="light" />
-          <RootStack />
+          <CustomerAuthProvider>
+            <StatusBar style="light" />
+            <RootStack />
+          </CustomerAuthProvider>
         </QueryClientProvider>
       </ThemeProvider>
     </SafeAreaProvider>

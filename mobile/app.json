@@ -10,7 +10,8 @@
     "newArchEnabled": true,
     "plugins": [
       "expo-router",
-      "expo-status-bar"
+      "expo-status-bar",
+      "expo-dev-client"
     ],
     "ios": {
       "supportsTablet": true

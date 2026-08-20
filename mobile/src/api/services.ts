@@ -1,4 +1,5 @@
 import api from './client';
+import customerApi from './customerClient';
 
 export type Service = {
   id: number;
@@ -39,14 +40,17 @@ export type Post = {
   cover_image_alt: string | null;
   category: string;
   author: string;
+  is_premium: boolean;
   created_at: string;
 };
 
 export type PostDetail = Post & {
-  content: string;
+  content: string | null;
   author_photo: string | null;
   author_designation: string | null;
   related: Pick<Post, 'id' | 'title' | 'slug' | 'cover_image' | 'cover_image_alt'>[];
+  locked: boolean;
+  required_service_label: string | null;
 };
 
 export type Faq = { id: number; question: string; answer: string; category: string };
@@ -80,6 +84,13 @@ export const getBlogCategories = () =>
   api.get<{ success: true; data: BlogCategory[] }>('/blog-categories').then((r) => r.data.data);
 export const getPost = (slug: string) =>
   api.get<{ success: true; data: PostDetail }>(`/posts/${slug}`).then((r) => r.data.data);
+
+// Companion to getPost, mirroring the web's client-side re-check: `api` never carries a customer
+// identity (it attaches the admin token, if any), so a premium post always comes back
+// `locked: true` from getPost. This uses the customer-authenticated client to fetch the real
+// content once CustomerAuthContext confirms who's signed in.
+export const getPostFullContent = (slug: string) =>
+  customerApi.get<{ success: true; data: { content: string } }>(`/posts/${slug}/full-content`).then((r) => r.data.data.content);
 
 export const submitLead = (payload: {
   name: string;

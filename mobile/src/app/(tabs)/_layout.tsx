@@ -8,6 +8,7 @@ const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   work: 'briefcase-outline',
   blog: 'newspaper-outline',
   contact: 'chatbubble-outline',
+  account: 'person-circle-outline',
 };
 
 export default function TabsLayout() {
@@ -27,6 +28,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="work" options={{ title: 'Work' }} />
       <Tabs.Screen name="blog" options={{ title: 'Blog' }} />
       <Tabs.Screen name="contact" options={{ title: 'Contact' }} />
+      <Tabs.Screen name="account" options={{ title: 'Account' }} />
     </Tabs>
   );
 }
