@@ -9,7 +9,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     (path) => ({ url: `${siteUrl}${path}`, lastModified: new Date() })
   );
 
-  const postRoutes = posts.map((p) => ({ url: `${siteUrl}/blog/${p.slug}`, lastModified: new Date() }));
+  // Real per-post freshness signal — previously every post claimed "just modified now," which is
+  // noise, not a signal, for a crawler deciding re-crawl priority.
+  const postRoutes = posts.map((p) => ({ url: `${siteUrl}/blog/${p.slug}`, lastModified: new Date(p.updated_at || p.created_at) }));
   const caseStudyRoutes = caseStudies.map((c) => ({ url: `${siteUrl}/work/${c.slug}`, lastModified: new Date() }));
   const serviceRoutes = services.map((s) => ({ url: `${siteUrl}/services/${s.slug}`, lastModified: new Date() }));
 

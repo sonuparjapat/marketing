@@ -31,7 +31,7 @@ export async function generateMetadata(): Promise<Metadata> {
     description:
       settings.default_meta_description ||
       'A performance marketing agency for D2C & SME brands in India, built by people who have shipped their own eCommerce brand.',
-    alternates: { canonical: '/' },
+    alternates: { canonical: '/', types: { 'application/rss+xml': '/rss.xml' } },
   };
 }
 

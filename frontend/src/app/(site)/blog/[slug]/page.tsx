@@ -48,7 +48,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
     image: post.cover_image || undefined,
     author: { '@type': 'Person', name: post.author, url: post.author_linkedin_url || undefined },
     datePublished: post.created_at,
-    dateModified: post.created_at,
+    dateModified: post.updated_at || post.created_at,
     wordCount,
   };
 
@@ -107,10 +107,24 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
       </div>
 
       <div className="mx-auto grid max-w-[960px] gap-10 lg:grid-cols-[720px_1fr]">
-        <div
-          className="prose prose-lg max-w-none [&_pre]:bg-bg2 [&_img]:border [&_img]:border-line"
-          dangerouslySetInnerHTML={{ __html: html }}
-        />
+        <div>
+          {headings.length > 1 && (
+            <details className="mb-8 rounded-xl border border-line-soft bg-bg2/40 p-4 lg:hidden">
+              <summary className="cursor-pointer text-xs uppercase tracking-[0.2em] text-accent">On this page</summary>
+              <nav className="mt-4 space-y-2.5 text-[13px]">
+                {headings.map((h) => (
+                  <a key={h.id} href={`#${h.id}`} className={`block text-muted hover:text-accent ${h.level === 3 ? 'pl-3' : ''}`}>
+                    {h.text}
+                  </a>
+                ))}
+              </nav>
+            </details>
+          )}
+          <div
+            className="prose prose-lg max-w-none [&_pre]:bg-bg2 [&_img]:border [&_img]:border-line"
+            dangerouslySetInnerHTML={{ __html: html }}
+          />
+        </div>
 
         {headings.length > 1 && (
           <aside className="hidden lg:block">

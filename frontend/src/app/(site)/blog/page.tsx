@@ -81,6 +81,13 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
             <h1 className="mt-3 max-w-2xl font-serif text-4xl font-normal leading-tight md:text-[50px]">
               Notes on building &amp; growing D2C.
             </h1>
+            <a href="/rss.xml" className="mt-3 inline-flex items-center gap-1.5 text-xs text-faint hover:text-accent">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                <path d="M4 11a9 9 0 019 9M4 4a16 16 0 0116 16" />
+                <circle cx="5" cy="19" r="1.5" fill="currentColor" stroke="none" />
+              </svg>
+              RSS feed
+            </a>
           </div>
           <form action="/blog" method="get" className="w-full max-w-xs">
             {category && <input type="hidden" name="category" value={category} />}

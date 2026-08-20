@@ -10,13 +10,16 @@ const listComments = asyncHandler(async (req, res) => {
   if (!post.rows[0]) return fail(res, 'Post not found', 404);
 
   const result = await pool.query(
-    `SELECT comments.id, comments.content, comments.created_at, comments.parent_id,
+    `SELECT comments.id, comments.content, comments.created_at, comments.parent_id, comments.reply_to_id,
             customers.name AS customer_name,
+            reply_to_customer.name AS reply_to_name,
             COALESCE(v.like_count, 0)::int AS like_count,
             COALESCE(v.dislike_count, 0)::int AS dislike_count,
             my_vote.vote_type AS my_vote
      FROM comments
      JOIN customers ON customers.id = comments.customer_id
+     LEFT JOIN comments reply_to_comment ON reply_to_comment.id = comments.reply_to_id
+     LEFT JOIN customers reply_to_customer ON reply_to_customer.id = reply_to_comment.customer_id
      LEFT JOIN (
        SELECT comment_id,
               COUNT(*) FILTER (WHERE vote_type = 'like') AS like_count,
@@ -32,28 +35,46 @@ const listComments = asyncHandler(async (req, res) => {
 
 // Auto-published, no moderation queue — content still runs through the same sanitizer as rich-text
 // admin fields as defense-in-depth against a pasted script payload, even though this is meant to be
-// plain text. parent_id (optional) makes this a reply.
+// plain text. `parent_id` in the request body is "the comment this reply is aimed at" from the
+// client's perspective — it may itself be a reply. That gets resolved here into the real stored
+// shape: `parent_id` always collapses to the top-level thread root (so replies never nest more than
+// one level deep — see the schema comment for why), while `reply_to_id` keeps the exact comment
+// that was replied to, purely so the UI can render "@Name" when that's a reply-to-a-reply.
 const createComment = asyncHandler(async (req, res) => {
-  const { content, parent_id } = req.body;
+  const { content, parent_id: replyTargetId } = req.body;
   if (!content || !content.trim()) return fail(res, 'Comment cannot be empty', 400);
 
   const post = await pool.query('SELECT id FROM posts WHERE slug = $1', [req.params.slug]);
   if (!post.rows[0]) return fail(res, 'Post not found', 404);
 
-  let parentId = null;
-  if (parent_id) {
-    const parent = await pool.query('SELECT id FROM comments WHERE id = $1 AND post_id = $2', [parent_id, post.rows[0].id]);
-    if (!parent.rows[0]) return fail(res, 'Cannot reply to a comment that does not exist on this post', 400);
-    parentId = parent.rows[0].id;
+  let topLevelParentId = null;
+  let replyToId = null;
+  if (replyTargetId) {
+    const target = await pool.query('SELECT id, parent_id FROM comments WHERE id = $1 AND post_id = $2', [
+      replyTargetId,
+      post.rows[0].id,
+    ]);
+    if (!target.rows[0]) return fail(res, 'Cannot reply to a comment that does not exist on this post', 400);
+    replyToId = target.rows[0].id;
+    topLevelParentId = target.rows[0].parent_id || target.rows[0].id;
   }
 
   const clean = sanitizeRichHtml(content.trim()).slice(0, 2000);
   const result = await pool.query(
-    `INSERT INTO comments (post_id, customer_id, parent_id, content) VALUES ($1, $2, $3, $4)
-     RETURNING id, content, created_at, parent_id`,
-    [post.rows[0].id, req.customer.id, parentId, clean]
+    `INSERT INTO comments (post_id, customer_id, parent_id, reply_to_id, content) VALUES ($1, $2, $3, $4, $5)
+     RETURNING id, content, created_at, parent_id, reply_to_id`,
+    [post.rows[0].id, req.customer.id, topLevelParentId, replyToId, clean]
   );
-  ok(res, { ...result.rows[0], customer_name: req.customer.name, like_count: 0, dislike_count: 0, my_vote: null }, 201);
+
+  let replyToName = null;
+  if (replyToId && replyToId !== topLevelParentId) {
+    const target = await pool.query('SELECT customers.name FROM comments JOIN customers ON customers.id = comments.customer_id WHERE comments.id = $1', [
+      replyToId,
+    ]);
+    replyToName = target.rows[0]?.name || null;
+  }
+
+  ok(res, { ...result.rows[0], customer_name: req.customer.name, reply_to_name: replyToName, like_count: 0, dislike_count: 0, my_vote: null }, 201);
 });
 
 // Same toggle/switch semantics as posts.controller.js's voteOnPost.

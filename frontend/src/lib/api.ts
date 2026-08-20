@@ -171,6 +171,8 @@ export type PostComment = {
   created_at: string;
   customer_name: string;
   parent_id: number | null;
+  reply_to_id: number | null;
+  reply_to_name: string | null;
   like_count: number;
   dislike_count: number;
   my_vote: 'like' | 'dislike' | null;

@@ -1,4 +1,4 @@
-export type CustomerUser = { id: number; name: string; email: string; is_premium: boolean };
+export type CustomerUser = { id: number; name: string; email: string; is_premium: boolean; created_at: string };
 
 export function getCustomerToken(): string | null {
   if (typeof window === 'undefined') return null;

@@ -16,7 +16,13 @@ const COOKIE_OPTS = {
 };
 
 function profileOf(customer) {
-  return { id: customer.id, name: customer.name, email: customer.email, is_premium: customer.is_premium };
+  return {
+    id: customer.id,
+    name: customer.name,
+    email: customer.email,
+    is_premium: customer.is_premium,
+    created_at: customer.created_at,
+  };
 }
 
 function issueSession(res, customer) {
@@ -46,7 +52,7 @@ const register = asyncHandler(async (req, res) => {
   try {
     const result = await pool.query(
       `INSERT INTO customers (name, email, password_hash) VALUES ($1, $2, $3)
-       RETURNING id, name, email, is_premium`,
+       RETURNING id, name, email, is_premium, created_at`,
       [name.trim(), email.trim().toLowerCase(), hash]
     );
     const customer = result.rows[0];
@@ -140,6 +146,34 @@ const resetPassword = asyncHandler(async (req, res) => {
   ok(res, { message: 'Password updated — you can now sign in.' });
 });
 
+// Self-service profile edit — name only for now (email change would need re-verification, out of
+// scope until there's an actual verification-email flow to hang it off of).
+const updateProfile = asyncHandler(async (req, res) => {
+  const { name } = req.body;
+  if (!name || !name.trim()) return fail(res, 'Name cannot be empty', 400);
+
+  const result = await pool.query('UPDATE customers SET name = $1 WHERE id = $2 RETURNING *', [
+    name.trim().slice(0, 150),
+    req.customer.id,
+  ]);
+  ok(res, profileOf(result.rows[0]));
+});
+
+// Powers the profile page's engagement stats (comments/reviews/tickets posted) — three cheap
+// indexed counts, not worth a heavier aggregate endpoint.
+const getStats = asyncHandler(async (req, res) => {
+  const [comments, reviews, tickets] = await Promise.all([
+    pool.query('SELECT COUNT(*)::int AS count FROM comments WHERE customer_id = $1', [req.customer.id]),
+    pool.query('SELECT COUNT(*)::int AS count FROM testimonials WHERE customer_id = $1', [req.customer.id]),
+    pool.query('SELECT COUNT(*)::int AS count FROM support_tickets WHERE customer_id = $1', [req.customer.id]),
+  ]);
+  ok(res, {
+    comment_count: comments.rows[0].count,
+    review_count: reviews.rows[0].count,
+    ticket_count: tickets.rows[0].count,
+  });
+});
+
 // Self-service data export (a plain-English "right to access" — returns everything the platform
 // holds about this customer as one JSON document, not a formatted report).
 const exportData = asyncHandler(async (req, res) => {
@@ -161,4 +195,15 @@ const deleteAccount = asyncHandler(async (req, res) => {
   ok(res, { deleted: true });
 });
 
-module.exports = { register, login, logout, me, forgotPassword, resetPassword, exportData, deleteAccount };
+module.exports = {
+  register,
+  login,
+  logout,
+  me,
+  updateProfile,
+  getStats,
+  forgotPassword,
+  resetPassword,
+  exportData,
+  deleteAccount,
+};

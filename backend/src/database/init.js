@@ -334,6 +334,12 @@ async function initDB() {
       );
     `);
     await client.query(`ALTER TABLE comments ADD COLUMN IF NOT EXISTS parent_id INT REFERENCES comments(id) ON DELETE CASCADE;`);
+    // reply_to_id is the SPECIFIC comment a reply was aimed at, which may itself be a reply —
+    // parent_id always collapses to the top-level thread root (YouTube's actual model: replies
+    // are a flat list under the top comment, never nested more than one level deep, which is what
+    // keeps threads readable). reply_to_id is only used to render the "@Name" mention when a reply
+    // was aimed at another reply rather than the top-level comment itself.
+    await client.query(`ALTER TABLE comments ADD COLUMN IF NOT EXISTS reply_to_id INT REFERENCES comments(id) ON DELETE SET NULL;`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_comments_post ON comments(post_id, created_at);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_comments_parent ON comments(parent_id);`);
 

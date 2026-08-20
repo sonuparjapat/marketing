@@ -20,6 +20,7 @@ type CustomerAuthValue = {
   logout: () => void;
   forgotPassword: (email: string) => Promise<AuthResult>;
   resetPassword: (token: string, password: string) => Promise<AuthResult>;
+  updateProfile: (name: string) => Promise<AuthResult>;
 };
 
 const CustomerAuthContext = createContext<CustomerAuthValue | null>(null);
@@ -105,9 +106,24 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const updateProfile = useCallback(
+    async (name: string): Promise<AuthResult> => {
+      try {
+        const res = await customerApiClient.patch('/auth/me', { name });
+        const token = getCustomerToken();
+        if (token) setCustomerSession(token, res.data.data);
+        setCustomer(res.data.data);
+        return { success: true };
+      } catch (err) {
+        return { success: false, message: errMessage(err, 'Something went wrong.') };
+      }
+    },
+    []
+  );
+
   const value = useMemo(
-    () => ({ customer, loading, login, register, logout, forgotPassword, resetPassword }),
-    [customer, loading, login, register, logout, forgotPassword, resetPassword]
+    () => ({ customer, loading, login, register, logout, forgotPassword, resetPassword, updateProfile }),
+    [customer, loading, login, register, logout, forgotPassword, resetPassword, updateProfile]
   );
 
   return <CustomerAuthContext.Provider value={value}>{children}</CustomerAuthContext.Provider>;

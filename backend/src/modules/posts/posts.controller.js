@@ -89,10 +89,8 @@ const getPost = asyncHandler(async (req, res) => {
   });
 });
 
-// Toggling the same vote_type again removes it (undo); switching from like to dislike (or back)
-// updates the existing row via ON CONFLICT rather than erroring on the UNIQUE(post_id, customer_id).
 // A lightweight companion to getPost — the post detail page is fetched server-side (no access to
-// the visitor's Bearer token, which lives in browser localStorage, not a cookie the server forward
+// the visitor's Bearer token, which lives in browser localStorage, not a cookie the server forwards
 // automatically), so "did I already vote" has to be fetched separately, client-side, once
 // useCustomerAuth() confirms someone is actually signed in.
 const getMyPostVote = asyncHandler(async (req, res) => {
@@ -106,6 +104,8 @@ const getMyPostVote = asyncHandler(async (req, res) => {
   ok(res, { vote_type: result.rows[0]?.vote_type || null });
 });
 
+// Toggling the same vote_type again removes it (undo); switching from like to dislike (or back)
+// updates the existing row via ON CONFLICT rather than erroring on the UNIQUE(post_id, customer_id).
 const voteOnPost = asyncHandler(async (req, res) => {
   const { vote_type } = req.body;
   if (!['like', 'dislike'].includes(vote_type)) return fail(res, "vote_type must be 'like' or 'dislike'", 400);
