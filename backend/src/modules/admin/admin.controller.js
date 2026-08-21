@@ -1,5 +1,3 @@
-const fs = require('fs');
-const path = require('path');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const otplib = require('otplib');
@@ -7,10 +5,7 @@ const QRCode = require('qrcode');
 const pool = require('../../config/db');
 const asyncHandler = require('../../utils/asyncHandler');
 const { ok, fail } = require('../../utils/response');
-const { s3, isConfigured: s3Configured, publicUrlFor } = require('../../config/aws');
-const { PutObjectCommand } = require('@aws-sdk/client-s3');
-
-const UPLOADS_DIR = path.join(__dirname, '../../../uploads');
+const { hasImageSignature, storeFile } = require('../../utils/fileUpload');
 
 // Resolves a raw `admins` row into the full profile shape returned by both login and /me —
 // department name + flattened "resource.action" permission strings. Super admins and admins with
@@ -236,44 +231,16 @@ const stats = asyncHandler(async (req, res) => {
   });
 });
 
-// The client-reported mimetype (checked by multer's fileFilter) is just a request header — trivial
-// to spoof. This checks the actual file bytes (magic numbers) for the four types multer allows, so
-// a renamed/relabeled non-image (an HTML or SVG-with-script payload, say) can't slip through as
-// something safe to serve back with an image content-type.
-function hasImageSignature(buffer) {
-  if (buffer.length < 4) return false;
-  const sig = buffer.subarray(0, 4);
-  if (sig[0] === 0xff && sig[1] === 0xd8 && sig[2] === 0xff) return true; // JPEG
-  if (sig[0] === 0x89 && sig[1] === 0x50 && sig[2] === 0x4e && sig[3] === 0x47) return true; // PNG
-  if (sig[0] === 0x47 && sig[1] === 0x49 && sig[2] === 0x46) return true; // GIF
-  if (sig[0] === 0x52 && sig[1] === 0x49 && sig[2] === 0x46 && sig[3] === 0x46) return true; // RIFF (WEBP container)
-  return false;
-}
-
 const uploadImage = asyncHandler(async (req, res) => {
   if (!req.file) return fail(res, 'No file uploaded', 400);
   if (!hasImageSignature(req.file.buffer)) return fail(res, 'That file does not look like a valid image', 400);
 
-  const ext = (req.file.originalname.split('.').pop() || 'bin').toLowerCase();
-  const filename = `${Date.now()}-${Math.round(Math.random() * 1e9)}.${ext}`;
-  let url;
-
-  if (s3Configured) {
-    const key = `uploads/${filename}`;
-    await s3.send(
-      new PutObjectCommand({
-        Bucket: process.env.AWS_BUCKET_NAME,
-        Key: key,
-        Body: req.file.buffer,
-        ContentType: req.file.mimetype,
-      })
-    );
-    url = publicUrlFor(key);
-  } else {
-    fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-    fs.writeFileSync(path.join(UPLOADS_DIR, filename), req.file.buffer);
-    url = `${req.protocol}://${req.get('host')}/uploads/${filename}`;
-  }
+  const { url } = await storeFile({
+    buffer: req.file.buffer,
+    originalname: req.file.originalname,
+    mimetype: req.file.mimetype,
+    req,
+  });
 
   const result = await pool.query(
     `INSERT INTO media (url, filename, mime_type, size_bytes, uploaded_by)

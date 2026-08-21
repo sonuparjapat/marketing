@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import apiClient from '@/lib/apiClient';
 import { useAdminAuth } from '@/context/AdminAuthContext';
 import { useAdminSocket } from '@/lib/useAdminSocket';
 import { useToast } from '@/components/Toast';
@@ -39,6 +40,15 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     ],
   },
   {
+    label: 'Agency',
+    items: [
+      { href: '/admin/clients', label: 'Clients', permission: 'clients.read' },
+      { href: '/admin/projects', label: 'Projects', permission: 'projects.read' },
+      { href: '/admin/invoices', label: 'Invoices', permission: 'invoices.read' },
+      { href: '/admin/appointments', label: 'Appointments', permission: 'appointments.read' },
+    ],
+  },
+  {
     label: 'Homepage',
     items: [
       { href: '/admin/homepage-sections', label: 'Sections', permission: 'homepage_sections.read' },
@@ -61,6 +71,7 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
   {
     label: 'Insights',
     items: [
+      { href: '/admin/notifications', label: 'Notifications', permission: 'notifications.read' },
       { href: '/admin/analytics', label: 'Analytics', permission: 'analytics.read' },
       { href: '/admin/logs', label: 'Activity Log', permission: 'logs.read' },
     ],
@@ -86,33 +97,52 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { admin, loading, isSuperAdmin, hasPermission, logout } = useAdminAuth();
   const [inboxBadge, setInboxBadge] = useState(0);
+  // A second, separate badge for Notifications — sourced from the real is_read=FALSE count in the
+  // database (fetched once on mount), not the session-local heuristic inboxBadge uses. The two are
+  // deliberately not merged: inboxBadge is "did something happen since I last looked at Leads/
+  // Callbacks this session", notificationsBadge is "how many notifications are actually unread".
+  const [notificationsBadge, setNotificationsBadge] = useState(0);
   const [changingPassword, setChangingPassword] = useState(false);
   const [managing2fa, setManaging2fa] = useState(false);
   const { show } = useToast();
+
+  useEffect(() => {
+    if (!hasPermission('notifications.read')) return;
+    apiClient
+      .get('/admin/notifications', { params: { limit: 1 } })
+      .then((res) => setNotificationsBadge(res.data.data.unread))
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useAdminSocket({
     onNewLead: (data) => {
       const lead = data as { name?: string };
       show(`New lead: ${lead.name || 'Someone'} just got in touch.`);
       setInboxBadge((n) => n + 1);
+      setNotificationsBadge((n) => n + 1);
     },
     onNewCallback: (data) => {
       const cb = data as { name?: string };
       show(`New callback request from ${cb.name || 'someone'}.`);
       setInboxBadge((n) => n + 1);
+      setNotificationsBadge((n) => n + 1);
     },
     onNewTicket: (data) => {
       const ticket = data as { subject?: string };
       show(`New support ticket: ${ticket.subject || 'Untitled'}.`);
       setInboxBadge((n) => n + 1);
+      setNotificationsBadge((n) => n + 1);
     },
     onNewTicketMessage: () => {
       show('A customer replied to a support ticket.');
       setInboxBadge((n) => n + 1);
+      setNotificationsBadge((n) => n + 1);
     },
   });
 
   useEffect(() => {
+    if (pathname === '/admin/notifications') setNotificationsBadge(0);
     if (pathname === '/admin/leads' || pathname === '/admin/callbacks') setInboxBadge(0);
   }, [pathname]);
 
@@ -157,11 +187,20 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`rounded-sm px-3 py-2.5 text-sm transition-colors ${
+                    className={`flex items-center justify-between rounded-sm px-3 py-2.5 text-sm transition-colors ${
                       active ? 'bg-accent text-bg font-semibold' : 'text-muted hover:bg-bg hover:text-fg'
                     }`}
                   >
                     {item.label}
+                    {item.href === '/admin/notifications' && notificationsBadge > 0 && (
+                      <span
+                        className={`flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold ${
+                          active ? 'bg-bg text-accent' : 'bg-accent text-bg'
+                        }`}
+                      >
+                        {notificationsBadge}
+                      </span>
+                    )}
                   </Link>
                 );
               })}

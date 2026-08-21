@@ -585,6 +585,186 @@ async function initDB() {
     await client.query(`ALTER TABLE posts ADD COLUMN IF NOT EXISTS is_premium BOOLEAN DEFAULT FALSE;`);
     await client.query(`ALTER TABLE posts ADD COLUMN IF NOT EXISTS required_service_id INT REFERENCES premium_services(id) ON DELETE SET NULL;`);
 
+    // --- Agency operations (Clients/Projects/Tasks/...) -----------------------------------------
+    // clients is the agency's actual paying-client record — a wholly separate identity space from
+    // `customers` (public-site accounts for blog/reviews/premium subscriptions, no business-account
+    // concept at all). status is the normal "remove" UX (soft state, matches subscription_plans'
+    // is_active idiom); a true hard delete is only ever allowed on an empty client (see
+    // clients.controller.js's pre-check) since a client with any projects/invoices is a financial
+    // record that must outlive being deleted.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS clients (
+        id                  SERIAL PRIMARY KEY,
+        name                VARCHAR(200) NOT NULL,
+        email               VARCHAR(200),
+        phone               VARCHAR(30),
+        company             VARCHAR(200),
+        industry            VARCHAR(100),
+        status              VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'paused', 'archived', 'churned')),
+        account_manager_id  INT REFERENCES admins(id) ON DELETE SET NULL,
+        notes               TEXT,
+        lead_id             INT REFERENCES leads(id) ON DELETE SET NULL,
+        created_at          TIMESTAMP DEFAULT NOW(),
+        updated_at          TIMESTAMP DEFAULT NOW()
+      );
+    `);
+    // Partial unique index — the guard against a double-submit on "Convert to client" creating two
+    // Client rows off the same Lead (a plain UNIQUE would block NULL lead_id, since most clients
+    // won't have come through a lead at all).
+    await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_clients_lead_id ON clients(lead_id) WHERE lead_id IS NOT NULL;`);
+
+    // projects.client_id carries no ON DELETE action (default NO ACTION) — a DB-level backstop
+    // behind clients.controller.js's app-level pre-check, which is the one that actually blocks
+    // deleting a client with projects on record (with a real error message instead of a raw
+    // constraint violation).
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS projects (
+        id            SERIAL PRIMARY KEY,
+        client_id     INT NOT NULL REFERENCES clients(id),
+        name          VARCHAR(200) NOT NULL,
+        description   TEXT,
+        status        VARCHAR(20) NOT NULL DEFAULT 'planning' CHECK (status IN ('planning', 'active', 'on_hold', 'completed', 'cancelled')),
+        start_date    DATE,
+        end_date      DATE,
+        budget_paise  INT,
+        created_at    TIMESTAMP DEFAULT NOW(),
+        updated_at    TIMESTAMP DEFAULT NOW()
+      );
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_projects_client ON projects(client_id);`);
+
+    // tasks.project_id cascades — content-like (a checklist item), same rationale as
+    // ticket_messages cascading with support_tickets. No separate permission key: gated by
+    // 'projects.*', same precedent as ticket_messages having none of its own.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS tasks (
+        id            SERIAL PRIMARY KEY,
+        project_id    INT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        title         VARCHAR(300) NOT NULL,
+        description   TEXT,
+        status        VARCHAR(20) NOT NULL DEFAULT 'todo' CHECK (status IN ('todo', 'in_progress', 'done')),
+        assignee_id   INT REFERENCES admins(id) ON DELETE SET NULL,
+        due_date      DATE,
+        sort_order    INT DEFAULT 0,
+        created_at    TIMESTAMP DEFAULT NOW(),
+        updated_at    TIMESTAMP DEFAULT NOW()
+      );
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id, sort_order);`);
+
+    // entity_id is polymorphic (entity_type decides which table it means) so it can NEVER be a real
+    // FK Postgres could cascade — Client/Project delete handlers explicitly clean up their
+    // documents rows first (see clients.controller.js / projects.controller.js). Not an extension
+    // of `media` — media has no polymorphic owner column and is conceptually "image library"
+    // throughout (its permission key, its nav label "Media Library").
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS documents (
+        id            SERIAL PRIMARY KEY,
+        url           TEXT NOT NULL,
+        filename      VARCHAR(300),
+        mime_type     VARCHAR(100),
+        size_bytes    INT,
+        entity_type   VARCHAR(20) NOT NULL CHECK (entity_type IN ('client', 'project')),
+        entity_id     INT NOT NULL,
+        uploaded_by   INT REFERENCES admins(id) ON DELETE SET NULL,
+        created_at    TIMESTAMP DEFAULT NOW()
+      );
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_documents_entity ON documents(entity_type, entity_id);`);
+
+    // Persisted twin of the real-time notifyAdmins() socket/push fan-out — written from inside
+    // notifyAdmins() itself (utils/notifyAdmins.js), so every existing and future call site gets a
+    // browsable history for free. No admin_id/per-admin read state — matches the existing "admins"
+    // room broadcast model (one shared inbox, not per-admin), simplest fit for what was asked.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS notifications (
+        id            SERIAL PRIMARY KEY,
+        event         VARCHAR(60) NOT NULL,
+        title         VARCHAR(200),
+        body          TEXT,
+        data          JSONB DEFAULT '{}',
+        is_read       BOOLEAN DEFAULT FALSE,
+        created_at    TIMESTAMP DEFAULT NOW()
+      );
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_notifications_created ON notifications(created_at DESC);`);
+
+    // --- Invoices (Razorpay Payment Links) -------------------------------------------------------
+    // Distinct from the customer-subscription payments tables (payments/payment_logs above) — an
+    // invoiced Client is an external business with no session, paid via an emailed Payment Link,
+    // not the Orders-API in-app checkout the subscription flow uses. A real Postgres SEQUENCE (not
+    // count-then-insert) so concurrent invoice creation can never collide on invoice_number.
+    await client.query(`CREATE SEQUENCE IF NOT EXISTS invoice_number_seq START 1;`);
+    // client_id is NOT NULL and carries no ON DELETE action — an invoice must always show who it
+    // billed, and (combined with clients.controller.js's pre-check) makes Client deletion
+    // structurally impossible once any invoice exists, not just a UI-level choice.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS invoices (
+        id                          SERIAL PRIMARY KEY,
+        client_id                   INT NOT NULL REFERENCES clients(id),
+        project_id                  INT REFERENCES projects(id) ON DELETE SET NULL,
+        invoice_number              VARCHAR(20) UNIQUE NOT NULL,
+        description                 TEXT,
+        amount_paise                INT NOT NULL,
+        status                      VARCHAR(20) NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'sent', 'paid', 'overdue', 'cancelled', 'refunded')),
+        due_date                    DATE,
+        razorpay_payment_link_id    VARCHAR(100),
+        razorpay_payment_link_url   TEXT,
+        created_at                  TIMESTAMP DEFAULT NOW(),
+        paid_at                     TIMESTAMP
+      );
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_invoices_client ON invoices(client_id);`);
+
+    // method makes room for non-Razorpay rows (manual/bank transfer) — razorpay_* columns stay
+    // nullable for those. No cascade on invoice_id: same "financial record must outlive its parent"
+    // rule as payments/payment_logs, applied recursively to invoices' own children.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS invoice_payments (
+        id                          SERIAL PRIMARY KEY,
+        invoice_id                  INT NOT NULL REFERENCES invoices(id),
+        method                      VARCHAR(20) NOT NULL CHECK (method IN ('razorpay', 'manual', 'bank_transfer', 'other')),
+        razorpay_payment_link_id    VARCHAR(100),
+        razorpay_payment_id         VARCHAR(100),
+        amount_paise                INT NOT NULL,
+        status                      VARCHAR(20) NOT NULL DEFAULT 'created' CHECK (status IN ('created', 'paid', 'failed', 'refunded')),
+        created_at                  TIMESTAMP DEFAULT NOW()
+      );
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_invoice_payments_invoice ON invoice_payments(invoice_id);`);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS invoice_payment_logs (
+        id                      SERIAL PRIMARY KEY,
+        event_type              VARCHAR(40) NOT NULL,
+        invoice_id              INT,
+        razorpay_payment_id     VARCHAR(100),
+        metadata                JSONB DEFAULT '{}',
+        created_at              TIMESTAMP DEFAULT NOW()
+      );
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_invoice_payment_logs_invoice ON invoice_payment_logs(invoice_id);`);
+
+    // Appointments — deliberately an internal scheduling RECORD, not a booking system: no public
+    // self-service booking, no availability-slot/timezone engine, no reminder cron (this backend
+    // has no recurring-job infrastructure, not worth standing one up for a single feature). Use
+    // Calendly/Cal.com if real public booking is ever wanted.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS appointments (
+        id                  SERIAL PRIMARY KEY,
+        lead_id             INT REFERENCES leads(id) ON DELETE SET NULL,
+        client_id           INT REFERENCES clients(id) ON DELETE SET NULL,
+        admin_id            INT NOT NULL REFERENCES admins(id),
+        title               VARCHAR(200) NOT NULL,
+        scheduled_at        TIMESTAMP NOT NULL,
+        duration_minutes    INT DEFAULT 30,
+        status              VARCHAR(20) NOT NULL DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'completed', 'cancelled', 'no_show')),
+        notes               TEXT,
+        created_at          TIMESTAMP DEFAULT NOW()
+      );
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_appointments_scheduled ON appointments(scheduled_at);`);
+
     await client.query('COMMIT');
     console.log('Database schema is up to date.');
   } catch (err) {
@@ -636,6 +816,12 @@ const PERMISSION_MODULES = [
   { key: 'premium_services', label: 'Premium Services', group: 'Subscriptions' },
   { key: 'subscription_plans', label: 'Subscription Plans', group: 'Subscriptions' },
   { key: 'payments', label: 'Payments', group: 'Subscriptions' },
+  { key: 'clients', label: 'Clients', group: 'Agency' },
+  { key: 'projects', label: 'Projects', group: 'Agency' },
+  { key: 'documents', label: 'Documents', group: 'Agency' },
+  { key: 'invoices', label: 'Invoices', group: 'Agency' },
+  { key: 'appointments', label: 'Appointments', group: 'Agency' },
+  { key: 'notifications', label: 'Notifications', group: 'Insights' },
   { key: 'media', label: 'Media Library', group: 'System' },
   { key: 'settings', label: 'Settings', group: 'System' },
   { key: 'analytics', label: 'Analytics', group: 'Insights' },

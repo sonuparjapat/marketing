@@ -3,6 +3,7 @@ const express = require('express');
 const pool = require('../../config/db');
 const { isConfigured } = require('../../config/razorpay');
 const { grantSubscription, logPaymentEvent, sendReceiptEmail, customerContact } = require('../subscriptions/subscriptions.service');
+const { handlePaymentLinkWebhook } = require('../invoices/invoices.service');
 
 // Mounted in app.js with express.raw() BEFORE the global express.json() parser — signature
 // verification needs the exact bytes Razorpay signed, and once express.json() has parsed the body
@@ -91,8 +92,26 @@ router.post('/', async (req, res) => {
         razorpay_payment_id: entity.id,
         metadata: { error: entity.error_description || null },
       });
+    } else if (event === 'payment_link.paid') {
+      // Invoices' automated confirmation path — there's no logged-in payer to call a client-side
+      // "verify" endpoint back (unlike subscriptions), so this webhook IS the automation, not a
+      // fallback for one. Delegates to invoices.service.js exactly like the payment.captured branch
+      // above delegates to subscriptions.service.js, same SELECT ... FOR UPDATE idempotency inside.
+      const paymentLinkEntity = payload.payload.payment_link.entity;
+      const paymentEntity = payload.payload.payment.entity;
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await handlePaymentLinkWebhook(client, { payment_link_id: paymentLinkEntity.id, payment_id: paymentEntity.id });
+        await client.query('COMMIT');
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
     }
-    // Every other event type is acknowledged and ignored — we only act on the two above.
+    // Every other event type is acknowledged and ignored — we only act on the ones above.
 
     res.json({ success: true });
   } catch (err) {

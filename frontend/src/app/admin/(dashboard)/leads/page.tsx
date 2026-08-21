@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import apiClient from '@/lib/apiClient';
 import { useAdminAuth } from '@/context/AdminAuthContext';
+import { useToast } from '@/components/Toast';
 import { Pagination } from '@/components/ui/Pagination';
 import { SectionInfo } from '@/components/admin/SectionInfo';
 
@@ -27,12 +29,16 @@ const STATUSES = ['new', 'contacted', 'qualified', 'proposal', 'won', 'lost'];
 
 export default function AdminLeadsPage() {
   const { hasPermission } = useAdminAuth();
+  const { show } = useToast();
+  const router = useRouter();
   const canUpdate = hasPermission('leads.update');
+  const canConvert = hasPermission('clients.create');
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
   const [active, setActive] = useState<Lead | null>(null);
   const [notes, setNotes] = useState('');
+  const [converting, setConverting] = useState(false);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -77,6 +83,26 @@ export default function AdminLeadsPage() {
     await apiClient.patch(`/admin/leads/${active.id}`, { notes });
     setLeads((prev) => prev.map((l) => (l.id === active.id ? { ...l, notes } : l)));
     setActive(null);
+  };
+
+  const convertToClient = async () => {
+    if (!active) return;
+    setConverting(true);
+    try {
+      const res = await apiClient.post(`/admin/leads/${active.id}/convert`);
+      setLeads((prev) => prev.map((l) => (l.id === active.id ? { ...l, status: 'won' } : l)));
+      setActive(null);
+      show('Converted to a client.');
+      router.push(`/admin/clients/${res.data.data.id}`);
+    } catch (err: unknown) {
+      const message =
+        err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
+          : undefined;
+      show(message || 'Something went wrong.', 'error');
+    } finally {
+      setConverting(false);
+    }
   };
 
   return (
@@ -201,15 +227,29 @@ export default function AdminLeadsPage() {
                 className="w-full resize-none border border-line bg-bg2 px-3.5 py-2.5 text-sm focus:border-accent focus:outline-none disabled:opacity-60"
               />
             </label>
-            <div className="mt-6 flex justify-end gap-3">
-              <button onClick={() => setActive(null)} className="px-5 py-2.5 text-sm text-muted hover:text-fg">
-                Close
-              </button>
-              {canUpdate && (
-                <button onClick={saveNotes} className="bg-accent px-6 py-2.5 text-sm font-bold text-bg hover:opacity-90">
-                  Save notes
+            <div className="mt-6 flex items-center justify-between gap-3">
+              {canConvert && active.status !== 'won' ? (
+                <button
+                  onClick={convertToClient}
+                  disabled={converting}
+                  className="border border-accent/50 px-4 py-2.5 text-sm text-accent hover:bg-accent/10 disabled:opacity-60"
+                  title="Creates a Client record from this lead's details and marks it won."
+                >
+                  {converting ? 'Converting…' : 'Convert to client'}
                 </button>
+              ) : (
+                <span />
               )}
+              <div className="flex gap-3">
+                <button onClick={() => setActive(null)} className="px-5 py-2.5 text-sm text-muted hover:text-fg">
+                  Close
+                </button>
+                {canUpdate && (
+                  <button onClick={saveNotes} className="bg-accent px-6 py-2.5 text-sm font-bold text-bg hover:opacity-90">
+                    Save notes
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>

@@ -83,6 +83,20 @@ const subscriptionReceipt = (name, planName, expiresAt) =>
      <p>Access runs until <strong>${new Date(expiresAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</strong>.</p>`
   );
 
+const invoiceSent = (clientName, invoiceNumber, amountPaise, paymentUrl) =>
+  wrapper(
+    `Invoice ${invoiceNumber}`,
+    `<p>Hi ${clientName}, here's your invoice for <strong>₹${(amountPaise / 100).toLocaleString('en-IN')}</strong>.</p>
+     <p style="margin:24px 0;"><a href="${paymentUrl}" style="background:#d4af6a;color:#14171f;padding:12px 22px;border-radius:4px;text-decoration:none;font-weight:bold;">Pay ${invoiceNumber}</a></p>
+     <p style="font-size:13px;color:#888;">This is a secure Razorpay payment link.</p>`
+  );
+
+const invoicePaymentReceived = (clientName, invoiceNumber, amountPaise) =>
+  wrapper(
+    `Payment received — ${invoiceNumber}`,
+    `<p>Hi ${clientName}, we've received your payment of <strong>₹${(amountPaise / 100).toLocaleString('en-IN')}</strong> for ${invoiceNumber}. Thank you!</p>`
+  );
+
 module.exports = {
   leadAutoReply,
   leadAdminAlert,
@@ -92,6 +106,8 @@ module.exports = {
   customerPasswordReset,
   customerVerification,
   subscriptionReceipt,
+  invoiceSent,
+  invoicePaymentReceived,
   ticketAdminAlert,
   ticketReplyNotification,
 };

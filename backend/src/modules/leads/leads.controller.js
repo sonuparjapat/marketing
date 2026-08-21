@@ -5,6 +5,7 @@ const { ok, fail } = require('../../utils/response');
 const { sendMail } = require('../../config/mailer');
 const { leadAutoReply, leadAdminAlert } = require('../../utils/emailTemplates');
 const { notifyAdmins } = require('../../utils/notifyAdmins');
+const { createClientFromLead } = require('../clients/clients.service');
 
 const createLead = asyncHandler(async (req, res) => {
   const { name, email, phone, company, service_interested, budget_range, message, source } = req.body;
@@ -105,4 +106,32 @@ const updateLead = asyncHandler(async (req, res) => {
   ok(res, result.rows[0]);
 });
 
-module.exports = { createLead, listLeads, updateLead };
+// Turns a lead into a real Client record and marks the lead 'won' — the one place these two
+// tables connect. Wrapped in a transaction since it's two writes that must succeed or fail
+// together; the partial unique index on clients.lead_id (WHERE lead_id IS NOT NULL) is the DB-level
+// backstop against two concurrent clicks creating two clients off the same lead.
+const convertLead = asyncHandler(async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const leadResult = await client.query('SELECT * FROM leads WHERE id = $1 FOR UPDATE', [req.params.id]);
+    const lead = leadResult.rows[0];
+    if (!lead) {
+      await client.query('ROLLBACK');
+      return fail(res, 'Lead not found', 404);
+    }
+
+    const newClient = await createClientFromLead(client, lead);
+    await client.query(`UPDATE leads SET status = 'won' WHERE id = $1`, [lead.id]);
+    await client.query('COMMIT');
+    ok(res, newClient, 201);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    if (err.code === '23505') return fail(res, 'This lead has already been converted to a client', 409);
+    throw err;
+  } finally {
+    client.release();
+  }
+});
+
+module.exports = { createLead, listLeads, updateLead, convertLead };
