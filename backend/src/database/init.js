@@ -600,6 +600,7 @@ async function initDB() {
   await seedDefaultHomepageSections();
   await seedDefaultNavLinks();
   await seedPermissions();
+  await seedDefaultPremiumCatalog();
 }
 
 // The permission catalog — every module a department can be granted access to,
@@ -805,6 +806,64 @@ async function seedDefaultNavLinks() {
        ON CONFLICT (label, location) DO NOTHING`,
       [label, href, i]
     );
+  }
+}
+
+// One-time real starter content for the premium subscription feature — so /premium and the admin
+// Subscription Plans page aren't blank on first deploy. Runs only when subscription_plans is
+// completely empty (mirrors seedAdmin's early-bailout style, not per-row ON CONFLICT like the
+// other seed*  functions) because subscription_plans has no natural unique business key to
+// conflict on, and because plans are meant to be admin-owned from the first deploy onward — this
+// never touches anything again once a single plan exists, even one the admin later deletes down to
+// zero, so it can't clobber a deliberate "no plans right now" state either.
+async function seedDefaultPremiumCatalog() {
+  const existing = await pool.query('SELECT COUNT(*)::int AS count FROM subscription_plans');
+  if (existing.rows[0].count > 0) return;
+
+  const services = [
+    {
+      key: 'premium-content',
+      label: 'Premium Content Access',
+      description: 'Full access to premium blog posts, in-depth playbooks and guides not available to free readers.',
+    },
+    {
+      key: 'priority-support',
+      label: 'Priority Support',
+      description: 'Faster-tracked responses on support tickets.',
+    },
+  ];
+
+  const serviceIds = [];
+  for (const s of services) {
+    const result = await pool.query(
+      `INSERT INTO premium_services (key, label, description, is_active) VALUES ($1, $2, $3, TRUE)
+       ON CONFLICT (key) DO NOTHING RETURNING id`,
+      [s.key, s.label, s.description]
+    );
+    if (result.rows[0]) {
+      serviceIds.push(result.rows[0].id);
+    } else {
+      const existingRow = await pool.query('SELECT id FROM premium_services WHERE key = $1', [s.key]);
+      serviceIds.push(existingRow.rows[0].id);
+    }
+  }
+
+  const plans = [
+    { name: '1-Month Growth Pass', duration_days: 30, price_paise: 99900, sort_order: 0 },
+    { name: '3-Month Growth Pass', duration_days: 90, price_paise: 249900, sort_order: 1 },
+    { name: '1-Year Growth Pass', duration_days: 365, price_paise: 799900, sort_order: 2 },
+  ];
+
+  for (const p of plans) {
+    const planResult = await pool.query(
+      `INSERT INTO subscription_plans (name, description, duration_days, price_paise, is_active, sort_order)
+       VALUES ($1, $2, $3, $4, TRUE, $5) RETURNING id`,
+      [p.name, 'Full access to premium content and priority support.', p.duration_days, p.price_paise, p.sort_order]
+    );
+    const planId = planResult.rows[0].id;
+    for (const serviceId of serviceIds) {
+      await pool.query('INSERT INTO plan_services (plan_id, service_id) VALUES ($1, $2)', [planId, serviceId]);
+    }
   }
 }
 
