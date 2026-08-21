@@ -61,7 +61,7 @@ export function Header({
         scrolled ? 'border-line bg-bg/90 backdrop-blur-md' : 'border-transparent bg-bg/40 backdrop-blur-sm'
       }`}
     >
-      <div className={`mx-auto flex max-w-[1312px] items-center justify-between px-6 transition-[padding] duration-300 md:px-16 ${scrolled ? 'py-4' : 'py-5'}`}>
+      <div className={`mx-auto flex max-w-[1312px] 2xl:max-w-[1600px] min-[1920px]:max-w-[1880px] items-center justify-between px-6 transition-[padding] duration-300 md:px-16 ${scrolled ? 'py-4' : 'py-5'}`}>
         <Link href="/" className="group flex items-center gap-2">
           <span className="h-1.5 w-1.5 rounded-full bg-accent transition-transform group-hover:scale-125" />
           <span className="font-serif-italic text-2xl">{agencyName}</span>

@@ -78,7 +78,7 @@ export default async function HomePage() {
             aria-hidden="true"
           />
           <span className="hero-watermark hidden md:block">Growth</span>
-          <div className="relative mx-auto grid max-w-[1312px] items-end gap-12 md:grid-cols-[1.15fr_0.85fr]">
+          <div className="relative mx-auto grid max-w-[1312px] 2xl:max-w-[1600px] min-[1920px]:max-w-[1880px] items-end gap-12 md:grid-cols-[1.15fr_0.85fr]">
             <MotionReveal>
               <div className="mb-7 flex items-center gap-2.5">
                 <span className="h-px w-7 bg-accent" />
@@ -195,7 +195,7 @@ export default async function HomePage() {
       {/* BANNERS */}
       {isOn('banners') && banners.length > 0 && (
         <section className="border-b border-line px-6 py-16 md:px-16">
-          <div className="mx-auto max-w-[1312px]">
+          <div className="mx-auto max-w-[1312px] 2xl:max-w-[1600px] min-[1920px]:max-w-[1880px]">
             <MotionReveal>
               <HeroBannerSlider banners={banners} />
             </MotionReveal>
@@ -206,7 +206,7 @@ export default async function HomePage() {
       {/* LOGO STRIP */}
       {isOn('logos') && logos.length > 0 && (
         <section className="border-b border-line py-9">
-          <div className="mx-auto mb-5 max-w-[1312px] px-6 md:px-16">
+          <div className="mx-auto mb-5 max-w-[1312px] 2xl:max-w-[1600px] min-[1920px]:max-w-[1880px] px-6 md:px-16">
             <span className="whitespace-nowrap text-xs uppercase tracking-wider text-faint">Trusted by growing brands</span>
           </div>
           <LogoMarquee logos={logos} />
@@ -216,7 +216,7 @@ export default async function HomePage() {
       {/* SERVICES */}
       {isOn('services') && services.length > 0 && (
         <section className="border-b border-line px-6 py-20 md:px-16 md:py-24">
-          <div className="mx-auto max-w-[1312px]">
+          <div className="mx-auto max-w-[1312px] 2xl:max-w-[1600px] min-[1920px]:max-w-[1880px]">
             <MotionReveal className="mb-16 flex flex-col justify-between gap-6 md:flex-row md:items-end">
               <div>
                 <span className="text-xs uppercase tracking-[0.2em] text-accent">What we do</span>
@@ -266,7 +266,7 @@ export default async function HomePage() {
       {/* HOW WE WORK */}
       {isOn('process') && (
         <section className="border-b border-line px-6 py-20 md:px-16 md:py-24">
-          <div className="mx-auto max-w-[1312px]">
+          <div className="mx-auto max-w-[1312px] 2xl:max-w-[1600px] min-[1920px]:max-w-[1880px]">
             <MotionReveal className="mb-16 flex flex-col justify-between gap-6 md:flex-row md:items-end">
               <div>
                 <span className="text-xs uppercase tracking-[0.2em] text-accent">How we work</span>
@@ -305,7 +305,7 @@ export default async function HomePage() {
       {/* STATS */}
       {isOn('stats') && stats.length > 0 && (
         <section className="border-b border-line bg-gradient-to-b from-bg2 to-bg px-6 py-14 md:px-16">
-          <div className="mx-auto grid max-w-[1312px] grid-cols-2 gap-8 md:grid-cols-4">
+          <div className="mx-auto grid max-w-[1312px] 2xl:max-w-[1600px] min-[1920px]:max-w-[1880px] grid-cols-2 gap-8 md:grid-cols-4">
             {stats.map((s, i) => {
               const hueClass = (['text-accent', 'text-accent-2', 'text-accent-3'] as const)[i % 3];
               return (
@@ -324,7 +324,7 @@ export default async function HomePage() {
       {/* CASE STUDIES */}
       {isOn('case_studies') && caseStudies.length > 0 && (
         <section className="border-b border-line px-6 py-20 md:px-16 md:py-24">
-          <div className="mx-auto max-w-[1312px]">
+          <div className="mx-auto max-w-[1312px] 2xl:max-w-[1600px] min-[1920px]:max-w-[1880px]">
             <MotionReveal className="mb-14 flex flex-col justify-between gap-6 md:flex-row md:items-end">
               <div>
                 <span className="text-xs uppercase tracking-[0.2em] text-accent">Selected work</span>
@@ -399,7 +399,7 @@ export default async function HomePage() {
       {/* WHY CHOOSE US */}
       {isOn('why_us') && whyUs.length > 0 && (
         <section className="border-b border-line px-6 py-20 md:px-16 md:py-24">
-          <div className="mx-auto grid max-w-[1312px] gap-12 md:grid-cols-[0.8fr_1.2fr]">
+          <div className="mx-auto grid max-w-[1312px] 2xl:max-w-[1600px] min-[1920px]:max-w-[1880px] gap-12 md:grid-cols-[0.8fr_1.2fr]">
             <MotionReveal>
               <span className="text-xs uppercase tracking-[0.2em] text-accent">Why {settings.agency_name || 'Anvil'}</span>
               <h2 className="mt-3 font-serif text-[34px] font-normal leading-tight md:text-[38px]">
@@ -429,7 +429,7 @@ export default async function HomePage() {
       {/* TESTIMONIALS */}
       {isOn('testimonials') && testimonials.length > 0 && (
         <section className="border-b border-line bg-bg2 px-6 py-20 md:px-16 md:py-24">
-          <div className="mx-auto max-w-[1312px]">
+          <div className="mx-auto max-w-[1312px] 2xl:max-w-[1600px] min-[1920px]:max-w-[1880px]">
             <MotionReveal className="mb-14 text-center">
               <span className="text-xs uppercase tracking-[0.2em] text-accent">Client words</span>
               <h2 className="mt-3 font-serif text-[34px] font-normal md:text-[38px]">
@@ -448,7 +448,7 @@ export default async function HomePage() {
       {/* BLOG */}
       {isOn('blog') && posts.items.length > 0 && (
         <section className="border-b border-line px-6 py-20 md:px-16 md:py-24">
-          <div className="mx-auto max-w-[1312px]">
+          <div className="mx-auto max-w-[1312px] 2xl:max-w-[1600px] min-[1920px]:max-w-[1880px]">
             <MotionReveal className="mb-14 flex flex-col justify-between gap-6 md:flex-row md:items-end">
               <div>
                 <span className="text-xs uppercase tracking-[0.2em] text-accent">From the desk</span>

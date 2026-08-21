@@ -75,7 +75,7 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
   return (
     <main className="px-6 py-24 md:px-16">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-      <div className="mx-auto max-w-[1312px]">
+      <div className="mx-auto max-w-[1312px] 2xl:max-w-[1600px] min-[1920px]:max-w-[1880px]">
         <div className="mb-12 flex flex-col justify-between gap-8 md:flex-row md:items-end">
           <div>
             <span className="text-xs uppercase tracking-[0.2em] text-accent">From the desk</span>

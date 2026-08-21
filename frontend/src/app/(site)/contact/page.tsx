@@ -41,7 +41,7 @@ export default async function ContactPage() {
     <main className="px-6 py-24 md:px-16">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
-      <div className="relative mx-auto grid max-w-[1312px] gap-16 md:grid-cols-[1fr_1.3fr]">
+      <div className="relative mx-auto grid max-w-[1312px] 2xl:max-w-[1600px] min-[1920px]:max-w-[1880px] gap-16 md:grid-cols-[1fr_1.3fr]">
         <div
           className="animate-drift pointer-events-none absolute -left-24 -top-16 h-[360px] w-[360px] rounded-full bg-accent/10 blur-[110px]"
           aria-hidden="true"

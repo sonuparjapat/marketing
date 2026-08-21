@@ -48,7 +48,7 @@ export default async function AboutPage() {
 
       {team.length > 0 && (
         <section className="border-b border-line px-6 py-24 md:px-16">
-          <div className="mx-auto max-w-[1312px]">
+          <div className="mx-auto max-w-[1312px] 2xl:max-w-[1600px] min-[1920px]:max-w-[1880px]">
             <span className="text-xs uppercase tracking-[0.2em] text-accent">The team</span>
             <h2 className="mt-3 mb-14 font-serif text-3xl font-normal md:text-4xl">People, not a logo.</h2>
             <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-4">

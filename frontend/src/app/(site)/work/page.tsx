@@ -33,7 +33,7 @@ export default async function WorkPage() {
   return (
     <main className="px-6 py-24 md:px-16">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-      <div className="mx-auto max-w-[1312px]">
+      <div className="mx-auto max-w-[1312px] 2xl:max-w-[1600px] min-[1920px]:max-w-[1880px]">
         <span className="text-xs uppercase tracking-[0.2em] text-accent">Selected work</span>
         <h1 className="mt-3 mb-16 max-w-2xl font-serif text-4xl font-normal leading-tight md:text-[50px]">
           Proof, not portfolios.

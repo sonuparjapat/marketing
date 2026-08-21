@@ -19,7 +19,7 @@ export function CookieConsentBanner() {
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-[70] border-t border-line-soft bg-bg2/95 px-6 py-5 backdrop-blur-md md:px-10">
-      <div className="mx-auto flex max-w-[1312px] flex-col items-center justify-between gap-4 md:flex-row">
+      <div className="mx-auto flex max-w-[1312px] 2xl:max-w-[1600px] min-[1920px]:max-w-[1880px] flex-col items-center justify-between gap-4 md:flex-row">
         <p className="max-w-2xl text-[13px] leading-relaxed text-muted">
           We use cookies for basic analytics (Google Analytics) to understand how visitors use this site. No data is
           sold or used for third-party advertising. Read our{' '}

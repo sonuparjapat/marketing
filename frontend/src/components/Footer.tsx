@@ -26,7 +26,7 @@ export async function Footer({
   return (
     <footer className="relative overflow-hidden px-6 pb-8 pt-20 md:px-16">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-accent/40 to-transparent" />
-      <div className="mx-auto grid max-w-[1312px] grid-cols-1 gap-12 border-b border-line-soft pb-16 md:grid-cols-[1.4fr_1fr_1fr_1.2fr]">
+      <div className="mx-auto grid max-w-[1312px] 2xl:max-w-[1600px] min-[1920px]:max-w-[1880px] grid-cols-1 gap-12 border-b border-line-soft pb-16 md:grid-cols-[1.4fr_1fr_1fr_1.2fr]">
         <div>
           <div className="mb-4 flex items-center gap-2.5">
             <span className="h-1.5 w-1.5 rounded-full bg-accent" />
@@ -103,7 +103,7 @@ export async function Footer({
         </div>
       </div>
 
-      <div className="mx-auto flex max-w-[1312px] flex-col items-center gap-4 pt-7 text-xs text-faint md:flex-row md:justify-between">
+      <div className="mx-auto flex max-w-[1312px] 2xl:max-w-[1600px] min-[1920px]:max-w-[1880px] flex-col items-center gap-4 pt-7 text-xs text-faint md:flex-row md:justify-between">
         <span>
           &copy; {year} {agencyName}. All rights reserved.
         </span>
